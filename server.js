@@ -241,8 +241,8 @@ app.get('/api/students', requireAuth, (req, res) => {
 
 // Фильтры (уникальные города, ниши)
 app.get('/api/students/filters', requireAuth, (req, res) => {
-  const cities  = db.prepare('SELECT city, COUNT(*) as cnt FROM students WHERE can_share=1 AND city IS NOT NULL AND city != "" GROUP BY city ORDER BY cnt DESC').all();
-  const niches  = db.prepare('SELECT niche, COUNT(*) as cnt FROM students WHERE can_share=1 AND niche IS NOT NULL AND niche != "" GROUP BY niche ORDER BY cnt DESC').all();
+  const cities  = db.prepare("SELECT city, COUNT(*) as cnt FROM students WHERE can_share=1 AND city IS NOT NULL AND city != '' GROUP BY city ORDER BY cnt DESC").all();
+  const niches  = db.prepare("SELECT niche, COUNT(*) as cnt FROM students WHERE can_share=1 AND niche IS NOT NULL AND niche != '' GROUP BY niche ORDER BY cnt DESC").all();
   res.json({ cities, niches });
 });
 
