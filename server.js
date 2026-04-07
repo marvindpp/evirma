@@ -115,7 +115,7 @@ app.post('/api/auth/telegram', async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `).run(telegramId, data.first_name || 'Пользователь', data.last_name || '', data.username || '', data.photo_url || '');
   } else {
-    db.prepare('UPDATE users SET last_seen = datetime("now"), first_name = ?, username = ?, photo_url = ? WHERE telegram_id = ?')
+    db.prepare(`UPDATE users SET last_seen = datetime('now'), first_name = ?, username = ?, photo_url = ? WHERE telegram_id = ?`)
       .run(data.first_name || '', data.username || '', data.photo_url || '', telegramId);
   }
 
