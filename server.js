@@ -334,4 +334,17 @@ app.listen(PORT, () => {
   console.log(`   Health:  http://localhost:${PORT}/api/health`);
   console.log(`   Режим:   ${DEV_MODE ? 'DEV (Telegram auth не проверяется)' : 'PRODUCTION'}`);
   console.log(`   Dev-вход: POST /api/auth/telegram { "id": "ваш_telegram_id" }\n`);
+
+  // Авто-импорт при первом запуске если база пустая
+  try {
+    const lessonCount = db.prepare('SELECT COUNT(*) as cnt FROM lessons').get().cnt;
+    if (lessonCount === 0) {
+      console.log('📦 База пустая — запускаю импорт...');
+      require('./import.js');
+    } else {
+      console.log(`✅ База: ${lessonCount} уроков, импорт не нужен`);
+    }
+  } catch(e) {
+    console.log('⚠️  Ошибка авто-импорта:', e.message);
+  }
 });
