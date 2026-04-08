@@ -3048,13 +3048,7 @@ function AuthPage({ onLogin }) {
       h('p', { className: 'auth-sub' }, 'Войдите через Telegram для доступа к эфирам, разборам и базе подрядчиков'),
       error && h('div', { style:{color:'#FF5B5B',background:'rgba(255,91,91,0.1)',padding:'10px 14px',borderRadius:'10px',marginBottom:'12px',fontSize:'14px'} }, error),
       loading && h('div', { style:{textAlign:'center',padding:'12px',color:'var(--text-dim)'} }, '⏳ Входим...'),
-      h('div', { id: 'tg-widget-wrap', style:{display:'flex',justifyContent:'center',margin:'16px 0'} }),
-      h('div', { style:{textAlign:'center',marginTop:8} },
-        h('button', {
-          onClick: handleDevLogin,
-          style:{background:'none',border:'none',color:'var(--text-dim)',fontSize:'12px',cursor:'pointer',textDecoration:'underline'}
-        }, 'Dev-режим (без виджета)')
-      ),
+      h('div', { id: 'tg-widget-wrap', style:{display:'flex',justifyContent:'center',margin:'16px 0',minHeight:48} }),
       h('div', { className: 'auth-note' },
         h('div', { className: 'auth-note-icon' }, h(Icon.shield)),
         h('div', { className: 'auth-note-text' }, 'Авторизация через ваш Telegram-аккаунт. Доступ получают только участники с активной подпиской.')
