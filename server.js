@@ -43,14 +43,26 @@ function verifyTgAuth(data) {
 }
 
 // ─── SESSIONS (JWT-like, без зависимостей) ─────────────────────────────────────
+const MAX_SESSIONS = 2; // максимум устройств
+
 function createSession(telegramId, role = 'student') {
   const tokenId = crypto.randomBytes(16).toString('hex');
   const payload = JSON.stringify({ telegram_id: String(telegramId), role, token_id: tokenId, exp: Date.now() + 30 * 86400_000 });
   const b64 = Buffer.from(payload).toString('base64url');
   const sig  = crypto.createHmac('sha256', SES_SECRET).update(b64).digest('base64url');
   const token = `${b64}.${sig}`;
-  // Сохраняем активный токен — старый аннулируется автоматически
-  db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(token, String(telegramId));
+
+  // Берём текущие токены (хранятся как JSON-массив)
+  const user = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(String(telegramId));
+  let tokens = [];
+  try { tokens = JSON.parse(user?.active_token || '[]'); } catch { tokens = []; }
+  if (!Array.isArray(tokens)) tokens = [];
+
+  // Добавляем новый, оставляем только последние MAX_SESSIONS
+  tokens.push(token);
+  if (tokens.length > MAX_SESSIONS) tokens = tokens.slice(-MAX_SESSIONS);
+
+  db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(JSON.stringify(tokens), String(telegramId));
   return token;
 }
 
@@ -63,9 +75,12 @@ function verifySession(token) {
   try {
     const p = JSON.parse(Buffer.from(b64, 'base64url').toString());
     if (p.exp < Date.now()) return null;
-    // Single session: токен должен совпадать с активным в БД
+    // Проверяем что токен есть в списке активных
     const user = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(String(p.telegram_id));
-    if (!user || user.active_token !== token) return null;
+    let tokens = [];
+    try { tokens = JSON.parse(user?.active_token || '[]'); } catch { tokens = []; }
+    if (!Array.isArray(tokens)) tokens = user?.active_token ? [user.active_token] : [];
+    if (!tokens.includes(token)) return null;
     return p;
   } catch { return null; }
 }
