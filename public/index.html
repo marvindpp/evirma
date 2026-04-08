@@ -3045,8 +3045,12 @@ function AuthPage({ onLogin }) {
         const res = await api.post('/api/auth/telegram', { id: devId, first_name: 'User', auth_date: Math.floor(Date.now()/1000) });
         if (res.ok) { setToken(res.session); onLogin(res.user); }
       } catch(apiErr) {
-        if (!apiErr.status) { onLogin({ telegram_id: devId, first_name: 'Demo', role: 'student' }); return; }
-        if (apiErr.status === 403) setError('Нет активной подписки');
+        if (apiErr.status === 403) {
+          const msg = apiErr.message === 'device_limit'
+            ? '🚫 Достигнут лимит устройств (2). Обратитесь к администратору.'
+            : 'Нет активной подписки. Продли в боте @evirmaclub_bot';
+          setError(msg);
+        }
         else setError('Ошибка: ' + apiErr.message);
       }
     } finally { setLoading(false); }
@@ -4129,8 +4133,21 @@ function AdminStudents() {
                     h('td', { style:{padding:'8px 12px',fontSize:12} }, s.niche||'—'),
                     h('td', { style:{padding:'8px 12px',fontSize:12} }, s.revenue||'—'),
                     h('td', { style:{padding:'8px 12px'} },
-                      h('span', { style:{fontSize:11,padding:'2px 8px',borderRadius:4,background:s.sub_active?'rgba(61,214,140,0.15)':'rgba(255,91,91,0.1)',color:s.sub_active?'var(--green)':'#FF5B5B',fontWeight:600} },
-                        s.sub_active ? 'Активна' : 'Нет'
+                      h('div', { style:{display:'flex',gap:6,alignItems:'center'} },
+                        h('span', { style:{fontSize:11,padding:'2px 8px',borderRadius:4,background:s.sub_active?'rgba(61,214,140,0.15)':'rgba(255,91,91,0.1)',color:s.sub_active?'var(--green)':'#FF5B5B',fontWeight:600} },
+                          s.sub_active ? 'Активна' : 'Нет'
+                        ),
+                        h('button', {
+                          title: 'Сбросить устройства',
+                          onClick: async () => {
+                            if (!confirm('Сбросить устройства для ' + s.name + '? Они смогут войти заново.')) return;
+                            try {
+                              await api.post('/api/admin/reset-devices', { telegram_id: s.telegram_id });
+                              alert('✅ Устройства сброшены');
+                            } catch(e) { alert('Ошибка: ' + e.message); }
+                          },
+                          style:{background:'rgba(255,184,71,0.1)',border:'1px solid rgba(255,184,71,0.3)',borderRadius:4,padding:'2px 7px',fontSize:11,cursor:'pointer',color:'#FFB347',whiteSpace:'nowrap'}
+                        }, '📱 Сброс')
                       )
                     )
                   )
