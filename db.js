@@ -17,15 +17,16 @@ function initSchema(db) {
   db.exec(`
     -- Пользователи (авторизованные через Telegram)
     CREATE TABLE IF NOT EXISTS users (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      telegram_id TEXT    UNIQUE NOT NULL,
-      first_name  TEXT,
-      last_name   TEXT,
-      username    TEXT,
-      photo_url   TEXT,
-      role        TEXT    DEFAULT 'student',  -- student | admin
-      created_at  TEXT    DEFAULT (datetime('now')),
-      last_seen   TEXT    DEFAULT (datetime('now'))
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      telegram_id  TEXT    UNIQUE NOT NULL,
+      first_name   TEXT,
+      last_name    TEXT,
+      username     TEXT,
+      photo_url    TEXT,
+      role         TEXT    DEFAULT 'student',
+      active_token TEXT,   -- текущий активный токен сессии
+      created_at   TEXT    DEFAULT (datetime('now')),
+      last_seen    TEXT    DEFAULT (datetime('now'))
     );
 
     -- Разделы базы знаний
@@ -101,6 +102,13 @@ function initSchema(db) {
       added_at      TEXT    DEFAULT (datetime('now'))
     );
   `);
+
+  // Миграция: добавляем active_token если колонки нет
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN active_token TEXT");
+  } catch(e) {
+    // Колонка уже есть — игнорируем
+  }
 }
 
 module.exports = { getDb };

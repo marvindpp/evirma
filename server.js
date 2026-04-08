@@ -44,10 +44,14 @@ function verifyTgAuth(data) {
 
 // ─── SESSIONS (JWT-like, без зависимостей) ─────────────────────────────────────
 function createSession(telegramId, role = 'student') {
-  const payload = JSON.stringify({ telegram_id: String(telegramId), role, exp: Date.now() + 30 * 86400_000 });
+  const tokenId = crypto.randomBytes(16).toString('hex');
+  const payload = JSON.stringify({ telegram_id: String(telegramId), role, token_id: tokenId, exp: Date.now() + 30 * 86400_000 });
   const b64 = Buffer.from(payload).toString('base64url');
   const sig  = crypto.createHmac('sha256', SES_SECRET).update(b64).digest('base64url');
-  return `${b64}.${sig}`;
+  const token = `${b64}.${sig}`;
+  // Сохраняем активный токен — старый аннулируется автоматически
+  db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(token, String(telegramId));
+  return token;
 }
 
 function verifySession(token) {
@@ -59,6 +63,9 @@ function verifySession(token) {
   try {
     const p = JSON.parse(Buffer.from(b64, 'base64url').toString());
     if (p.exp < Date.now()) return null;
+    // Single session: токен должен совпадать с активным в БД
+    const user = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(String(p.telegram_id));
+    if (!user || user.active_token !== token) return null;
     return p;
   } catch { return null; }
 }
