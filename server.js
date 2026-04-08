@@ -13,7 +13,14 @@ const BOT_TOKEN  = process.env.BOT_TOKEN  || '7918341254:AAETVIIfFW53Amdcnoa1sIR
 const KIN_TOKEN  = process.env.KIN_TOKEN  || '3be9b86c-6fdd-4264-8ecd-a77cca747f71';
 const SUB_URL    = 'https://evirmaclub.ru/webhook/status_sub';
 const SES_SECRET = process.env.SESSION_SECRET || 'evirma-secret-' + crypto.randomBytes(8).toString('hex');
-const DEV_MODE   = process.env.NODE_ENV !== 'production'; // dev: не проверять подпись Telegram
+const DEV_MODE   = process.env.NODE_ENV !== 'production';
+
+// Telegram ID администраторов платформы
+const ADMIN_IDS = new Set([
+  '313596616',   // Даулет (разработчик)
+  '7385674488',  // Даулет (основной аккаунт)
+  // 'OLGA_ID',  // Ольга — добавить после получения ID
+]); // dev: не проверять подпись Telegram
 
 const app = express();
 const db  = getDb();
@@ -108,15 +115,14 @@ app.post('/api/auth/telegram', async (req, res) => {
   }
 
   // Upsert пользователя в БД
+  const isAdmin = ADMIN_IDS.has(String(telegramId));
   const existing = db.prepare('SELECT id, role FROM users WHERE telegram_id = ?').get(telegramId);
   if (!existing) {
-    db.prepare(`
-      INSERT INTO users (telegram_id, first_name, last_name, username, photo_url)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(telegramId, data.first_name || 'Пользователь', data.last_name || '', data.username || '', data.photo_url || '');
+    db.prepare(`INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, role) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(telegramId, data.first_name || 'Пользователь', data.last_name || '', data.username || '', data.photo_url || '', isAdmin ? 'admin' : 'student');
   } else {
-    db.prepare(`UPDATE users SET last_seen = datetime('now'), first_name = ?, username = ?, photo_url = ? WHERE telegram_id = ?`)
-      .run(data.first_name || '', data.username || '', data.photo_url || '', telegramId);
+    db.prepare(`UPDATE users SET last_seen = datetime('now'), first_name = ?, username = ?, photo_url = ?, role = ? WHERE telegram_id = ?`)
+      .run(data.first_name || '', data.username || '', data.photo_url || '', isAdmin ? 'admin' : (existing.role || 'student'), telegramId);
   }
 
   const user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramId);

@@ -36,8 +36,21 @@ if (fs.existsSync(sPath)) {
   console.log('✅ ' + list.length + ' учеников');
 }
 
-const adminId = '313596616';
-if (!db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(adminId)) {
-  db.prepare("INSERT INTO users (telegram_id, first_name, role) VALUES (?, 'Admin', 'admin')").run(adminId);
+// Администраторы платформы
+const ADMINS = [
+  { id: '313596616',  name: 'Marvin' },   // Даулет (разработчик)
+  { id: '7385674488', name: 'Marvin2' },  // Даулет (основной аккаунт)
+  // { id: 'OLGA_ID', name: 'Ольга' },   // Добавить когда узнаем ID Ольги (@byibylka)
+];
+
+for (const admin of ADMINS) {
+  const existing = db.prepare('SELECT id, role FROM users WHERE telegram_id = ?').get(admin.id);
+  if (!existing) {
+    db.prepare("INSERT INTO users (telegram_id, first_name, role) VALUES (?, ?, 'admin')").run(admin.id, admin.name);
+    console.log(`👤 Создан админ: ${admin.name} (${admin.id})`);
+  } else if (existing.role !== 'admin') {
+    db.prepare("UPDATE users SET role = 'admin' WHERE telegram_id = ?").run(admin.id);
+    console.log(`👤 Обновлён до админа: ${admin.name} (${admin.id})`);
+  }
 }
 console.log('✅ Импорт завершён!');
