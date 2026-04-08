@@ -41,6 +41,7 @@ function initSchema(db) {
     CREATE TABLE IF NOT EXISTS lessons (
       id              TEXT    PRIMARY KEY,   -- Kinescope UUID
       title           TEXT    NOT NULL,
+      description     TEXT    DEFAULT '',
       module_id       INTEGER REFERENCES modules(id),
       duration        TEXT,
       duration_sec    INTEGER DEFAULT 0,
