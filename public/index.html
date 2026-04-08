@@ -1108,6 +1108,21 @@
   .profile-badge.green { background: var(--green-dim); color: var(--green); }
   .profile-badge svg { width: 11px; height: 11px; }
 
+  .profile-input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+  }
+  .profile-input:focus { outline: none; border-color: var(--accent); }
+  .profile-input option { background: var(--bg2); }
+
   .profile-edit-btn {
     background: var(--bg3);
     border: 1px solid var(--border2);
@@ -2975,26 +2990,46 @@ function moduleIconStyle(modId) {
 
 // ===== AUTH PAGE =====
 function AuthPage({ onLogin }) {
-  const [loading, setLoading] = React.useState(false);
-  const [error,   setError]   = React.useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
+  useEffect(() => {
+    // Настоящий Telegram Login Widget
+    window.onTelegramAuth = async function(tgUser) {
+      setLoading(true); setError(null);
+      try {
+        const res = await api.post('/api/auth/telegram', tgUser);
+        if (res.ok) { setToken(res.session); onLogin(res.user); }
+      } catch(e) {
+        if (e.status === 403) setError('Нет активной подписки. Продли в боте @evirmaclub_bot');
+        else setError('Ошибка входа: ' + e.message);
+        setLoading(false);
+      }
+    };
+    const script = document.createElement('script');
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.setAttribute('data-telegram-login', 'evirmaclub_bot');
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+    script.setAttribute('data-request-access', 'write');
+    script.async = true;
+    const wrap = document.getElementById('tg-widget-wrap');
+    if (wrap && !wrap.hasChildNodes()) wrap.appendChild(script);
+    return () => { delete window.onTelegramAuth; };
+  }, []);
+
+  // Dev-режим fallback если виджет не загрузился
+  async function handleDevLogin() {
     setLoading(true); setError(null);
     try {
-      const devId = prompt('Введите Telegram ID для входа:', '313596616');
+      const devId = prompt('Dev-режим: введи Telegram ID', '313596616');
       if (!devId) { setLoading(false); return; }
       try {
-        const res = await api.post('/api/auth/telegram', {
-          id: devId, first_name: 'User', auth_date: Math.floor(Date.now()/1000)
-        });
+        const res = await api.post('/api/auth/telegram', { id: devId, first_name: 'User', auth_date: Math.floor(Date.now()/1000) });
         if (res.ok) { setToken(res.session); onLogin(res.user); }
       } catch(apiErr) {
-        // Бэкенд недоступен (Netlify / локальный просмотр) — входим в демо-режим
-        if (!apiErr.status) {
-          onLogin({ telegram_id: devId, first_name: 'Демо', last_name: 'Пользователь', role: 'admin', username: 'demo' });
-          return;
-        }
-        if (apiErr.status === 403) setError('Нет активной подписки. Продли в боте @evirmaclub_bot');
+        if (!apiErr.status) { onLogin({ telegram_id: devId, first_name: 'Demo', role: 'student' }); return; }
+        if (apiErr.status === 403) setError('Нет активной подписки');
         else setError('Ошибка: ' + apiErr.message);
       }
     } finally { setLoading(false); }
@@ -3010,12 +3045,28 @@ function AuthPage({ onLogin }) {
         )
       ),
       h('h1', { className: 'auth-title' }, 'Добро пожаловать в клуб'),
-      h('p', { className: 'auth-sub' }, 'Войдите через Telegram для доступа к эфирам, разборам и базе подрядчиков клуба Max Evirma'),
+      h('p', { className: 'auth-sub' }, 'Войдите через Telegram для доступа к эфирам, разборам и базе подрядчиков'),
       error && h('div', { style:{color:'#FF5B5B',background:'rgba(255,91,91,0.1)',padding:'10px 14px',borderRadius:'10px',marginBottom:'12px',fontSize:'14px'} }, error),
-      h('button', { className: 'tg-button', onClick: handleLogin, disabled: loading },
-        h(Icon.telegram),
-        loading ? 'Вход...' : 'Войти через Telegram'
+      loading && h('div', { style:{textAlign:'center',padding:'12px',color:'var(--text-dim)'} }, '⏳ Входим...'),
+      h('div', { id: 'tg-widget-wrap', style:{display:'flex',justifyContent:'center',margin:'16px 0'} }),
+      h('div', { style:{textAlign:'center',marginTop:8} },
+        h('button', {
+          onClick: handleDevLogin,
+          style:{background:'none',border:'none',color:'var(--text-dim)',fontSize:'12px',cursor:'pointer',textDecoration:'underline'}
+        }, 'Dev-режим (без виджета)')
       ),
+      h('div', { className: 'auth-note' },
+        h('div', { className: 'auth-note-icon' }, h(Icon.shield)),
+        h('div', { className: 'auth-note-text' }, 'Авторизация через ваш Telegram-аккаунт. Доступ получают только участники с активной подпиской.')
+      ),
+      h('div', { className: 'auth-features' },
+        h('div', { className: 'auth-feat' }, h('div', { className: 'auth-feat-num' }, '600+'), h('div', { className: 'auth-feat-label' }, 'Участников')),
+        h('div', { className: 'auth-feat' }, h('div', { className: 'auth-feat-num' }, '120+'), h('div', { className: 'auth-feat-label' }, 'Видеоуроков')),
+        h('div', { className: 'auth-feat' }, h('div', { className: 'auth-feat-num' }, '40+'), h('div', { className: 'auth-feat-label' }, 'Подрядчиков'))
+      )
+    )
+  );
+}
       h('div', { className: 'auth-note' },
         h('div', { className: 'auth-note-icon' }, h(Icon.shield)),
         h('div', { className: 'auth-note-text' }, 'Авторизация через ваш Telegram-аккаунт. Данные проверяются через защищённое соединение. Доступ получают только участники с активной подпиской.')
@@ -3111,26 +3162,32 @@ function Topbar({ title, sub, onMenuClick }) {
         h('div', { className: 'topbar-title' }, title),
         sub && h('div', { className: 'topbar-sub' }, sub)
       )
-    ),
-    h('div', { className: 'topbar-right' },
-      h('div', { className: 'search-box' },
-        h(Icon.search),
-        h('input', { placeholder: 'Поиск по клубу...' })
-      )
     )
   );
 }
 
 // ===== DASHBOARD =====
-function Dashboard({ onNavigate, onLessonClick }) {
-  const recentLessons = LESSONS.slice(0, 5);
-  const totalDone = MODULES.reduce((a, m) => a + m.done, 0);
-  const totalAll = MODULES.reduce((a, m) => a + m.total, 0);
-  const progress = Math.round((totalDone / totalAll) * 100);
+function Dashboard({ onNavigate, onLessonClick, user }) {
+  const [progress, setProgress] = useState(null);
+  const [sub, setSub]           = useState(null);
+
+  useEffect(() => {
+    api.get('/api/me/progress').then(setProgress).catch(() => {});
+    api.get('/api/me/subscription').then(setSub).catch(() => {});
+  }, []);
+
+  const firstName = user?.first_name || 'участник';
+  const watched   = progress?.watched ?? 0;
+  const total     = progress?.total   ?? LESSONS.length;
+  const pct       = progress?.percent ?? 0;
+  const totalHours = Math.round(LESSONS.reduce((a,l)=>a+(l.duration_sec||0),0)/3600);
+
+  // Парсим дни из сообщения подписки
+  const subDays = sub?.message ? (sub.message.match(/\d+/) || ['?'])[0] : '?';
 
   return h('div', { className: 'content-wide' },
     h('div', { className: 'hero-card' },
-      h('div', { className: 'hero-greeting' }, 'Привет, Даулет 👋'),
+      h('div', { className: 'hero-greeting' }, 'Привет, ' + firstName + ' 👋'),
       h('h1', { className: 'hero-title' }, 'Добро пожаловать в ', h('span', null, 'Max Evirma Club')),
       h('p', { className: 'hero-desc' }, 'Закрытое комьюнити для селлеров и менеджеров Wildberries. Эфиры, разборы, готовые решения и проверенные подрядчики — всё для роста на маркетплейсе.'),
       h('button', { className: 'hero-cta', onClick: () => onNavigate('knowledge') },
@@ -3145,32 +3202,32 @@ function Dashboard({ onNavigate, onLessonClick }) {
           h('div', { className: 'stat-label' }, 'Прогресс'),
           h('div', { className: 'stat-icon-box stat-icon-orange' }, h(Icon.trending))
         ),
-        h('div', { className: 'stat-value' }, progress + '%'),
-        h('div', { className: 'stat-trend' }, h(Icon.trending), '+8% за неделю')
+        h('div', { className: 'stat-value' }, pct + '%'),
+        h('div', { className: 'stat-trend' }, 'просмотрено уроков')
       ),
       h('div', { className: 'stat-card' },
         h('div', { className: 'stat-head' },
           h('div', { className: 'stat-label' }, 'Просмотрено'),
           h('div', { className: 'stat-icon-box stat-icon-green' }, h(Icon.checkCircle))
         ),
-        h('div', { className: 'stat-value' }, totalDone + '/' + totalAll),
-        h('div', { className: 'stat-trend' }, h(Icon.trending), '+3 урока')
+        h('div', { className: 'stat-value' }, watched + '/' + total),
+        h('div', { className: 'stat-trend' }, 'уроков отмечено')
       ),
       h('div', { className: 'stat-card' },
         h('div', { className: 'stat-head' },
           h('div', { className: 'stat-label' }, 'Часов контента'),
           h('div', { className: 'stat-icon-box stat-icon-blue' }, h(Icon.clock))
         ),
-        h('div', { className: 'stat-value' }, '186ч'),
-        h('div', { className: 'stat-trend' }, h(Icon.trending), '+12ч в этом месяце')
+        h('div', { className: 'stat-value' }, totalHours + 'ч'),
+        h('div', { className: 'stat-trend' }, '122 видеоурока')
       ),
       h('div', { className: 'stat-card' },
         h('div', { className: 'stat-head' },
           h('div', { className: 'stat-label' }, 'Подписка'),
           h('div', { className: 'stat-icon-box stat-icon-yellow' }, h(Icon.calendar))
         ),
-        h('div', { className: 'stat-value' }, '42 дня'),
-        h('div', { className: 'stat-trend' }, 'до продления')
+        h('div', { className: 'stat-value' }, subDays === '?' ? '—' : subDays + ' дн'),
+        h('div', { className: 'stat-trend' }, sub?.message || 'до продления')
       )
     ),
 
@@ -3225,12 +3282,18 @@ function Dashboard({ onNavigate, onLessonClick }) {
 // ===== KNOWLEDGE BASE =====
 function KnowledgeBase({ onLessonClick }) {
   const [activeModule, setActiveModule] = useState('all');
-  const filteredLessons = activeModule === 'all' ? LESSONS : LESSONS.filter(l => l.moduleId === activeModule);
+  const [search, setSearch] = useState('');
+
+  const filteredLessons = LESSONS.filter(l => {
+    const matchModule = activeModule === 'all' || l.moduleId === activeModule;
+    const matchSearch = !search || l.title.toLowerCase().includes(search.toLowerCase());
+    return matchModule && matchSearch;
+  });
 
   return h('div', { className: 'content-wide' },
     h('div', { className: 'modules-grid' },
       ...MODULES.map(mod =>
-        h('div', { key: mod.id, className: 'module-card', onClick: () => setActiveModule(mod.id === activeModule ? 'all' : mod.id), style: mod.id === activeModule ? { borderColor: 'var(--accent-border)', background: 'var(--bg3)' } : {} },
+        h('div', { key: mod.id, className: 'module-card', onClick: () => { setActiveModule(mod.id === activeModule ? 'all' : mod.id); setSearch(''); }, style: mod.id === activeModule ? { borderColor: 'var(--accent-border)', background: 'var(--bg3)' } : {} },
           h('div', { className: 'module-icon', style: moduleIconStyle(mod.id) }, h(Icon[mod.icon])),
           h('div', { className: 'module-name' }, mod.title),
           h('div', { className: 'module-count' }, mod.done + ' из ' + mod.total + ' уроков'),
@@ -3241,35 +3304,54 @@ function KnowledgeBase({ onLessonClick }) {
       )
     ),
 
-    h('div', { className: 'section-head', style: { marginTop: '2rem' } },
-      h('div', { className: 'section-title' }, activeModule === 'all' ? 'Все уроки' : MODULES.find(m => m.id === activeModule)?.title),
-      activeModule !== 'all' && h('button', { className: 'section-link', onClick: () => setActiveModule('all') }, 'Показать все')
+    h('div', { style:{margin:'1.5rem 0 1rem',display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'} },
+      h('div', { className:'admin-search', style:{flex:1,minWidth:200} },
+        h(Icon.search),
+        h('input', {
+          placeholder: 'Поиск по урокам...',
+          value: search,
+          onChange: e => setSearch(e.target.value)
+        })
+      ),
+      h('div', { style:{fontSize:13,color:'var(--text-dim)',whiteSpace:'nowrap'} },
+        filteredLessons.length + ' уроков'
+      ),
+      (activeModule !== 'all' || search) && h('button', {
+        className: 'section-link',
+        onClick: () => { setActiveModule('all'); setSearch(''); }
+      }, 'Сбросить')
     ),
 
-    h('div', { className: 'lessons-list' },
-      ...filteredLessons.map(lesson => {
-        const mod = MODULES.find(m => m.id === lesson.moduleId);
-        return h('div', { key: lesson.id, className: 'lesson-card', onClick: () => onLessonClick(lesson) },
-          h('div', { className: 'lesson-thumb' },
-            h(Icon.play),
-            h('div', { className: 'lesson-thumb-duration' }, lesson.duration)
-          ),
-          h('div', { className: 'lesson-info' },
-            h('div', { className: 'lesson-title' }, lesson.title),
-            h('div', { className: 'lesson-meta' },
-              h('span', null, mod?.title),
-              h('span', { className: 'lesson-meta-dot' }, '•'),
-              h('span', null, lesson.date),
-              h('span', { className: 'lesson-meta-dot' }, '•'),
-              h('span', null, lesson.views + ' просмотров')
-            )
-          ),
-          lesson.done
-            ? h('div', { className: 'lesson-status done' }, h(Icon.check), 'Просмотрено')
-            : lesson.isNew ? h('div', { className: 'lesson-status new' }, 'Новое') : null
-        );
-      })
-    )
+    h('div', { className: 'section-head', style: { marginTop: '0.5rem' } },
+      h('div', { className: 'section-title' },
+        search ? 'Результаты поиска' : activeModule === 'all' ? 'Все уроки' : MODULES.find(m => m.id === activeModule)?.title
+      )
+    ),
+
+    filteredLessons.length === 0
+      ? h('div', { style:{textAlign:'center',padding:'40px',color:'var(--text-dim)'} }, 'Ничего не найдено по запросу "' + search + '"')
+      : h('div', { className: 'lessons-list' },
+          ...filteredLessons.map(lesson => {
+            const mod = MODULES.find(m => m.id === lesson.moduleId);
+            return h('div', { key: lesson.id, className: 'lesson-card', onClick: () => onLessonClick(lesson) },
+              h('div', { className: 'lesson-thumb' },
+                h(Icon.play),
+                h('div', { className: 'lesson-thumb-duration' }, lesson.duration)
+              ),
+              h('div', { className: 'lesson-info' },
+                h('div', { className: 'lesson-title' }, lesson.title),
+                h('div', { className: 'lesson-meta' },
+                  h('span', null, mod?.title),
+                  h('span', { className: 'lesson-meta-dot' }, '•'),
+                  h('span', null, lesson.duration)
+                )
+              ),
+              lesson.done
+                ? h('div', { className: 'lesson-status done' }, h(Icon.check), 'Просмотрено')
+                : lesson.isNew ? h('div', { className: 'lesson-status new' }, 'Новое') : null
+            );
+          })
+        )
   );
 }
 
@@ -3325,32 +3407,9 @@ function LessonPlayer({ lesson, onBack, onComplete, onNext, onPrev }) {
       )
     ),
 
-    h('div', { className: 'player-section' },
-      h('div', { className: 'player-section-title' }, 'Таймкоды'),
-      h('div', { className: 'timecodes-list' },
-        ...TIMECODES.map((tc, i) =>
-          h('div', { key: i, className: 'timecode-item' },
-            h('div', { className: 'timecode-time' }, tc.time),
-            h('div', { className: 'timecode-text' }, tc.text)
-          )
-        )
-      )
-    ),
-
-    h('div', { className: 'player-section' },
-      h('div', { className: 'player-section-title' }, 'Материалы к уроку'),
-      h('div', { className: 'materials-list' },
-        ...MATERIALS.map((mat, i) =>
-          h('div', { key: i, className: 'material-item' },
-            h('div', { className: 'material-icon' }, h(Icon.file)),
-            h('div', { className: 'material-info' },
-              h('div', { className: 'material-name' }, mat.name),
-              h('div', { className: 'material-size' }, mat.size)
-            ),
-            h('div', { className: 'material-download' }, h(Icon.download))
-          )
-        )
-      )
+    lesson.description && h('div', { className: 'player-section' },
+      h('div', { className: 'player-section-title' }, 'Описание'),
+      h('div', { style:{fontSize:14,color:'var(--text2)',lineHeight:1.7,whiteSpace:'pre-wrap'} }, lesson.description)
     ),
 
     h('div', { className: 'lesson-nav' },
@@ -3688,28 +3747,70 @@ function Profile({ user }) {
       h('div', { className: 'profile-card' },
         h('div', { className: 'profile-card-title' }, 'Анкета участника'),
         editing
-          ? h('div', { className: 'profile-fields' },
-              h('div', { className: 'profile-field' },
-                h('div', { className: 'profile-field-label' }, 'Город'),
-                h('input', { style:{textAlign:'right',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'4px 10px',color:'var(--text)',fontSize:13,width:'60%'}, value: editData.city||'', onChange: e => setEditData(d=>({...d,city:e.target.value})) })
-              ),
-              h('div', { className: 'profile-field' },
-                h('div', { className: 'profile-field-label' }, 'Ниша'),
-                h('input', { style:{textAlign:'right',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'4px 10px',color:'var(--text)',fontSize:13,width:'60%'}, value: editData.niche||'', onChange: e => setEditData(d=>({...d,niche:e.target.value})) })
-              ),
-              h('div', { className: 'profile-field' },
-                h('div', { className: 'profile-field-label' }, 'Выручка'),
-                h('select', { style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'4px 10px',color:'var(--text)',fontSize:13}, value: editData.revenue||'', onChange: e => setEditData(d=>({...d,revenue:e.target.value})) },
-                  ['Новичок','до 10 млн','10-50 млн','50-200 млн','200+ млн'].map(r => h('option',{key:r,value:r},r))
+          ? h('div', null,
+              h('div', { style:{display:'flex',flexDirection:'column',gap:14} },
+
+                h('div', { className: 'profile-field', style:{flexDirection:'column',gap:6} },
+                  h('div', { className: 'profile-field-label' }, 'Имя и фамилия'),
+                  h('input', { className:'profile-input', placeholder:'Иван Иванов', value: editData.full_name||'', onChange: e => setEditData(d=>({...d,full_name:e.target.value})) })
+                ),
+
+                h('div', { className: 'profile-field', style:{flexDirection:'column',gap:6} },
+                  h('div', { className: 'profile-field-label' }, 'Телефон'),
+                  h('input', { className:'profile-input', placeholder:'+7 900 000 00 00', value: editData.phone||'', onChange: e => setEditData(d=>({...d,phone:e.target.value})) })
+                ),
+
+                h('div', { className: 'profile-field', style:{flexDirection:'column',gap:6} },
+                  h('div', { className: 'profile-field-label' }, 'Город'),
+                  h('input', { className:'profile-input', placeholder:'Москва', value: editData.city||'', onChange: e => setEditData(d=>({...d,city:e.target.value})) })
+                ),
+
+                h('div', { className: 'profile-field', style:{flexDirection:'column',gap:6} },
+                  h('div', { className: 'profile-field-label' }, 'Email'),
+                  h('input', { className:'profile-input', placeholder:'email@example.com', type:'email', value: editData.email||'', onChange: e => setEditData(d=>({...d,email:e.target.value})) })
+                ),
+
+                h('div', { className: 'profile-field', style:{flexDirection:'column',gap:6} },
+                  h('div', { className: 'profile-field-label' }, 'Годовой оборот'),
+                  h('select', { className:'profile-input', value: editData.revenue||'', onChange: e => setEditData(d=>({...d,revenue:e.target.value})) },
+                    h('option', {value:''}, 'Выберите...'),
+                    ['Новичок','до 10 млн','10-50 млн','50-200 млн','200+ млн'].map(r => h('option',{key:r,value:r},r))
+                  )
+                ),
+
+                h('div', { className: 'profile-field', style:{flexDirection:'column',gap:6} },
+                  h('div', { className: 'profile-field-label' }, 'Ниша'),
+                  h('input', { className:'profile-input', placeholder:'Женская одежда, Дом...', value: editData.niche||'', onChange: e => setEditData(d=>({...d,niche:e.target.value})) })
+                ),
+
+                h('div', { className: 'profile-field', style:{flexDirection:'column',gap:6} },
+                  h('div', { className: 'profile-field-label' }, 'Цель участия в клубе'),
+                  h('textarea', { className:'profile-input', placeholder:'Хочу научиться...', rows:3, style:{resize:'vertical'}, value: editData.goal||'', onChange: e => setEditData(d=>({...d,goal:e.target.value})) })
+                ),
+
+                h('div', { className: 'profile-field', style:{flexDirection:'column',gap:6} },
+                  h('div', { className: 'profile-field-label' }, 'Сильные стороны'),
+                  h('textarea', { className:'profile-input', placeholder:'Экспертиза, навыки, достижения...', rows:3, style:{resize:'vertical'}, value: editData.strengths||'', onChange: e => setEditData(d=>({...d,strengths:e.target.value})) })
+                ),
+
+                h('div', { style:{display:'flex',alignItems:'center',gap:10,padding:'12px',background:'var(--bg2)',borderRadius:10,border:'1px solid var(--border)'} },
+                  h('input', { type:'checkbox', id:'can_share', checked: !!editData.can_share, onChange: e => setEditData(d=>({...d,can_share:e.target.checked})), style:{width:16,height:16,accentColor:'var(--accent)',cursor:'pointer'} }),
+                  h('label', { htmlFor:'can_share', style:{cursor:'pointer',fontSize:13,color:'var(--text)'} },
+                    h('strong', null, 'Показывать мои контакты участникам клуба'),
+                    h('div', { style:{fontSize:12,color:'var(--text-dim)',marginTop:2} }, 'Другие участники смогут видеть ваш телефон и email')
+                  )
+                ),
+
+                h('div', { style:{display:'flex',gap:8,marginTop:4} },
+                  h('button', {
+                    style:{flex:1,padding:'10px',borderRadius:10,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:14,fontWeight:600},
+                    onClick: saveProfile, disabled: saving
+                  }, saving ? 'Сохранение...' : 'Сохранить изменения'),
+                  h('button', {
+                    style:{padding:'10px 16px',borderRadius:10,background:'var(--bg2)',color:'var(--text)',border:'1px solid var(--border)',cursor:'pointer',fontSize:14},
+                    onClick: () => setEditing(false)
+                  }, 'Отмена')
                 )
-              ),
-              h('div', { className: 'profile-field' },
-                h('div', { className: 'profile-field-label' }, 'Цель участия'),
-                h('textarea', { style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 10px',color:'var(--text)',fontSize:13,width:'100%',resize:'vertical',minHeight:60}, value: editData.goal||'', onChange: e => setEditData(d=>({...d,goal:e.target.value})) })
-              ),
-              h('div', { style:{display:'flex',gap:8,marginTop:12} },
-                h('button', { className:'btn-primary', style:{flex:1,padding:'8px',borderRadius:8,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:13,fontWeight:600}, onClick: saveProfile }, saving ? 'Сохранение...' : 'Сохранить'),
-                h('button', { style:{flex:1,padding:'8px',borderRadius:8,background:'var(--bg3)',color:'var(--text)',border:'1px solid var(--border)',cursor:'pointer',fontSize:13}, onClick: () => setEditing(false) }, 'Отмена')
               )
             )
           : h('div', { className: 'profile-fields' },
@@ -3737,7 +3838,7 @@ function Profile({ user }) {
                 h('div', { className: 'profile-field-label' }, 'Цель участия'),
                 h('div', { className: 'profile-field-value', style:{maxWidth:280} }, profileData.goal)
               ),
-              h('button', { className:'profile-edit-btn', style:{marginTop:12}, onClick: () => { setEditData({city:profileData?.city||'',niche:profileData?.niche||'',revenue:profileData?.revenue||'Новичок',goal:profileData?.goal||''}); setEditing(true); } }, h(Icon.edit), 'Редактировать')
+              h('button', { className:'profile-edit-btn', style:{marginTop:12}, onClick: () => { setEditData({full_name:profileData?.full_name||name, phone:profileData?.phone||'', city:profileData?.city||'', email:profileData?.email||'', revenue:profileData?.revenue||'', niche:profileData?.niche||'', goal:profileData?.goal||'', strengths:profileData?.strengths||'', can_share:!!profileData?.can_share}); setEditing(true); } }, h(Icon.edit), 'Редактировать профиль')
             )
       ),
       h('div', { className: 'subscription-card' },
@@ -3772,15 +3873,184 @@ function Profile({ user }) {
             )
           ),
           ...Array.from({ length: Math.max(0, empSlots - employees.length) }).map((_, i) =>
-            h('div', { key: 'empty' + i, className: 'employee-slot empty' },
+            h('a', {
+              key: 'empty' + i,
+              className: 'employee-slot empty',
+              href: 'https://t.me/evirmaclub_bot?start=add_employee',
+              target: '_blank',
+              rel: 'noopener',
+              style: { textDecoration: 'none', cursor: 'pointer' }
+            },
               h('div', { className: 'add-employee-icon' }, h(Icon.plus)),
               h('div', { className: 'add-employee-text' }, 'Добавить сотрудника'),
-              h('div', { style:{fontSize:'11px',color:'var(--text-dim)',marginTop:4} }, 'Редирект в @evirmaclub_bot')
+              h('div', { style:{fontSize:'11px',color:'var(--accent)',marginTop:4,fontWeight:600} }, 'Через @evirmaclub_bot')
             )
           )
         )
       )
     )
+  );
+}
+
+// ===== ADMIN: CONTRACTORS =====
+function AdminContractors({ onDataChange }) {
+  const [contractors, setContractors] = useState([]);
+  const [editing, setEditing] = useState(null); // null | 'new' | {id,...}
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/api/contractors').then(r => setContractors(r.contractors)).catch(() => {});
+  }, []);
+
+  function startNew() { setForm({name:'',category:'',description:'',contact:'',promo_code:'',rating:5}); setEditing('new'); }
+  function startEdit(c) { setForm({...c}); setEditing(c); }
+
+  async function save() {
+    setSaving(true);
+    try {
+      if (editing === 'new') {
+        await api.post('/api/admin/contractors', form);
+      } else {
+        await api.patch('/api/admin/contractors/' + editing.id, form);
+      }
+      const r = await api.get('/api/contractors');
+      setContractors(r.contractors);
+      setEditing(null);
+      onDataChange && onDataChange();
+    } catch(e) { alert('Ошибка: ' + e.message); }
+    setSaving(false);
+  }
+
+  async function remove(id) {
+    if (!confirm('Удалить подрядчика?')) return;
+    await api.delete('/api/admin/contractors/' + id);
+    setContractors(c => c.filter(x => x.id !== id));
+  }
+
+  const inputStyle = {width:'100%',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box',fontFamily:'inherit'};
+
+  if (editing) return h('div', null,
+    h('div', { style:{display:'flex',justifyContent:'space-between',marginBottom:16} },
+      h('div', { style:{fontSize:15,fontWeight:700} }, editing==='new' ? 'Новый подрядчик' : 'Редактировать'),
+      h('button', { onClick:()=>setEditing(null), style:{background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer',fontSize:13} }, '← Назад')
+    ),
+    h('div', { style:{display:'flex',flexDirection:'column',gap:10} },
+      ...[ ['Название', 'name'], ['Категория', 'category'], ['Описание', 'description'], ['Контакт (TG/телефон)', 'contact'], ['Промокод', 'promo_code'] ].map(([label, key]) =>
+        h('div', { key },
+          h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:4} }, label),
+          key === 'description'
+            ? h('textarea', { style:{...inputStyle,resize:'vertical',minHeight:60}, value:form[key]||'', onChange:e=>setForm(f=>({...f,[key]:e.target.value})) })
+            : h('input', { style:inputStyle, value:form[key]||'', onChange:e=>setForm(f=>({...f,[key]:e.target.value})) })
+        )
+      ),
+      h('div', null,
+        h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:4} }, 'Рейтинг (0-5)'),
+        h('input', { type:'number', min:0, max:5, step:0.1, style:{...inputStyle,width:100}, value:form.rating||0, onChange:e=>setForm(f=>({...f,rating:parseFloat(e.target.value)})) })
+      ),
+      h('button', { onClick:save, disabled:saving, style:{padding:'10px',borderRadius:8,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:14,fontWeight:600} },
+        saving ? 'Сохранение...' : 'Сохранить'
+      )
+    )
+  );
+
+  return h('div', null,
+    h('div', { style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16} },
+      h('div', { style:{fontSize:14,color:'var(--text-dim)'} }, contractors.length + ' подрядчиков'),
+      h('button', { onClick:startNew, style:{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:13,fontWeight:600} }, '+ Добавить')
+    ),
+    h('div', { className:'admin-table' },
+      h('table', { style:{width:'100%',borderCollapse:'collapse'} },
+        h('thead', null,
+          h('tr', null,
+            ...['Название','Категория','Контакт','Промокод','Рейтинг',''].map(col =>
+              h('th', { key:col, style:{textAlign:'left',padding:'8px 12px',fontSize:12,color:'var(--text-dim)',borderBottom:'1px solid var(--border)',fontWeight:600} }, col)
+            )
+          )
+        ),
+        h('tbody', null,
+          ...contractors.map(c =>
+            h('tr', { key:c.id, style:{borderBottom:'1px solid var(--border)'} },
+              h('td', { style:{padding:'10px 12px',fontSize:13,fontWeight:600} }, c.name),
+              h('td', { style:{padding:'10px 12px',fontSize:12,color:'var(--text-dim)'} }, c.category),
+              h('td', { style:{padding:'10px 12px',fontSize:12} }, c.contact),
+              h('td', { style:{padding:'10px 12px',fontSize:12,color:'var(--accent)',fontWeight:700} }, c.promo_code),
+              h('td', { style:{padding:'10px 12px',fontSize:12} }, '★ ' + c.rating),
+              h('td', { style:{padding:'10px 12px',display:'flex',gap:8} },
+                h('button', { onClick:()=>startEdit(c), style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer',color:'var(--text)'} }, 'Ред.'),
+                h('button', { onClick:()=>remove(c.id), style:{background:'rgba(255,91,91,0.1)',border:'1px solid rgba(255,91,91,0.3)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer',color:'#FF5B5B'} }, 'Удал.')
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ===== ADMIN: STUDENTS =====
+function AdminStudents() {
+  const [students, setStudents] = useState([]);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ page, limit: 20 });
+    if (search) params.set('search', search);
+    api.get('/api/students?' + params).then(r => {
+      setStudents(r.students.map(s => ({...s, name: s.full_name||s.first_name||'—', handle: s.telegram_user ? '@'+s.telegram_user : '—' })));
+      setTotal(r.total); setPages(r.pages||1);
+    }).catch(()=>{}).finally(()=>setLoading(false));
+  }, [search, page]);
+
+  useEffect(() => { setPage(1); }, [search]);
+
+  return h('div', null,
+    h('div', { style:{display:'flex',gap:10,marginBottom:16,alignItems:'center'} },
+      h('div', { className:'admin-search', style:{flex:1} },
+        h(Icon.search),
+        h('input', { placeholder:'Поиск по имени, нику...', value:search, onChange:e=>setSearch(e.target.value) })
+      ),
+      h('div', { style:{fontSize:13,color:'var(--text-dim)',whiteSpace:'nowrap'} }, 'Всего: ' + total)
+    ),
+    loading
+      ? h('div', { style:{textAlign:'center',padding:40,color:'var(--text-dim)'} }, 'Загрузка...')
+      : h('div', { className:'admin-table' },
+          h('table', { style:{width:'100%',borderCollapse:'collapse'} },
+            h('thead', null,
+              h('tr', null,
+                ...['Имя','Telegram','Город','Ниша','Выручка','Подписка'].map(col =>
+                  h('th', { key:col, style:{textAlign:'left',padding:'8px 12px',fontSize:12,color:'var(--text-dim)',borderBottom:'1px solid var(--border)',fontWeight:600} }, col)
+                )
+              )
+            ),
+            h('tbody', null,
+              ...students.map(s =>
+                h('tr', { key:s.id, style:{borderBottom:'1px solid var(--border)'} },
+                  h('td', { style:{padding:'8px 12px',fontSize:13,fontWeight:600} }, s.name),
+                  h('td', { style:{padding:'8px 12px',fontSize:12,color:'var(--accent)'} }, s.handle),
+                  h('td', { style:{padding:'8px 12px',fontSize:12} }, s.city||'—'),
+                  h('td', { style:{padding:'8px 12px',fontSize:12} }, s.niche||'—'),
+                  h('td', { style:{padding:'8px 12px',fontSize:12} }, s.revenue||'—'),
+                  h('td', { style:{padding:'8px 12px'} },
+                    h('span', { style:{fontSize:11,padding:'2px 8px',borderRadius:4,background:s.sub_active?'rgba(61,214,140,0.15)':'rgba(255,91,91,0.1)',color:s.sub_active?'var(--green)':'#FF5B5B',fontWeight:600} },
+                      s.sub_active ? 'Активна' : 'Нет'
+                    )
+                  )
+                )
+              )
+            )
+          ),
+          pages > 1 && h('div', { className:'pagination', style:{marginTop:16} },
+            h('button', { className:'page-btn', disabled:page===1, onClick:()=>setPage(p=>p-1) }, h(Icon.chevronLeft), 'Назад'),
+            h('div', { className:'page-info' }, 'Стр. ', h('strong',null,page), ' из ', pages),
+            h('button', { className:'page-btn', disabled:page===pages, onClick:()=>setPage(p=>p+1) }, 'Вперёд', h(Icon.chevronRight))
+          )
+        )
   );
 }
 
@@ -4002,6 +4272,17 @@ function AdminContent({ onDataChange }) {
                     },
                     onKeyDown: e => { if (e.key === 'Enter') e.target.blur(); }
                   }),
+                  h('input', {
+                    style:{fontSize:11,color:'var(--text-dim)',background:'transparent',border:'none',borderBottom:'1px dashed var(--border)',width:'100%',marginTop:3,padding:'2px 0',outline:'none'},
+                    placeholder:'Описание урока (опционально)...',
+                    defaultValue: lesson.description||'',
+                    onBlur: e => {
+                      if (e.target.value !== (lesson.description||'')) {
+                        lesson.description = e.target.value;
+                        api.patch('/api/admin/lessons/' + lesson.id, { description: e.target.value }).catch(()=>{});
+                      }
+                    }
+                  }),
                   h('div', { className: 'admin-row-meta-mobile' },
                     h('span', null, lesson.duration),
                     h('span', null, '•'),
@@ -4024,19 +4305,9 @@ function AdminContent({ onDataChange }) {
       )
     ),
 
-    tab === 'contractors' && h('div', { className: 'admin-table' },
-      h('div', { className: 'admin-empty' },
-        'Управление подрядчиками: добавление, редактирование, модерация заявок от участников.', h('br'), h('br'),
-        'Будет реализовано на следующем этапе с подключением к базе данных.'
-      )
-    ),
+    tab === 'contractors' && h(AdminContractors, { onDataChange }),
 
-    tab === 'students' && h('div', { className: 'admin-table' },
-      h('div', { className: 'admin-empty' },
-        'Управление участниками: просмотр базы из 633 учеников, фильтрация, экспорт, ручное добавление.', h('br'), h('br'),
-        'Будет реализовано на следующем этапе с импортом базы из BASE_06_04.xlsx.'
-      )
-    ),
+    tab === 'students' && h(AdminStudents),
 
     savedToast && h('div', { className: 'admin-saved-toast' },
       h(Icon.check),
@@ -4147,7 +4418,7 @@ function App() {
   } else if (page === 'admin' && role === 'admin') {
     pageContent = h(AdminContent, { onDataChange: () => setDataVersion(v => v + 1) });
   } else if (page === 'dashboard') {
-    pageContent = h(Dashboard, { onNavigate: setPage, onLessonClick: setCurrentLesson, key: 'dash-' + dataVersion });
+    pageContent = h(Dashboard, { onNavigate: setPage, onLessonClick: setCurrentLesson, user, key: 'dash-' + dataVersion });
   } else if (page === 'knowledge') {
     pageContent = h(KnowledgeBase, { onLessonClick: setCurrentLesson, key: 'kb-' + dataVersion });
   } else if (page === 'students') {
