@@ -3067,27 +3067,6 @@ function AuthPage({ onLogin }) {
     )
   );
 }
-      h('div', { className: 'auth-note' },
-        h('div', { className: 'auth-note-icon' }, h(Icon.shield)),
-        h('div', { className: 'auth-note-text' }, 'Авторизация через ваш Telegram-аккаунт. Данные проверяются через защищённое соединение. Доступ получают только участники с активной подпиской.')
-      ),
-      h('div', { className: 'auth-features' },
-        h('div', { className: 'auth-feat' },
-          h('div', { className: 'auth-feat-num' }, '600+'),
-          h('div', { className: 'auth-feat-label' }, 'Участников')
-        ),
-        h('div', { className: 'auth-feat' },
-          h('div', { className: 'auth-feat-num' }, '120+'),
-          h('div', { className: 'auth-feat-label' }, 'Видеоуроков')
-        ),
-        h('div', { className: 'auth-feat' },
-          h('div', { className: 'auth-feat-num' }, '40+'),
-          h('div', { className: 'auth-feat-label' }, 'Подрядчиков')
-        )
-      )
-    )
-  );
-}
 
 // ===== SIDEBAR =====
 function Sidebar({ page, onNavigate, onLogout, open, onClose, role }) {
