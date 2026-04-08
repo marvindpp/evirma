@@ -43,7 +43,7 @@ function verifyTgAuth(data) {
 }
 
 // ─── SESSIONS (JWT-like, без зависимостей) ─────────────────────────────────────
-const MAX_SESSIONS = 2; // максимум устройств
+const MAX_DEVICES = 2; // максимум устройств навсегда
 
 function createSession(telegramId, role = 'student') {
   const tokenId = crypto.randomBytes(16).toString('hex');
@@ -52,18 +52,34 @@ function createSession(telegramId, role = 'student') {
   const sig  = crypto.createHmac('sha256', SES_SECRET).update(b64).digest('base64url');
   const token = `${b64}.${sig}`;
 
-  // Берём текущие токены (хранятся как JSON-массив)
   const user = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(String(telegramId));
-  let tokens = [];
-  try { tokens = JSON.parse(user?.active_token || '[]'); } catch { tokens = []; }
-  if (!Array.isArray(tokens)) tokens = [];
+  let sessions = [];
+  try { sessions = JSON.parse(user?.active_token || '[]'); } catch { sessions = []; }
+  if (!Array.isArray(sessions)) sessions = [];
 
-  // Добавляем новый, оставляем только последние MAX_SESSIONS
-  tokens.push(token);
-  if (tokens.length > MAX_SESSIONS) tokens = tokens.slice(-MAX_SESSIONS);
+  // Если слотов ещё нет — добавляем (первые MAX_DEVICES устройств навсегда)
+  if (sessions.length < MAX_DEVICES) {
+    sessions.push({ token, added: Date.now() });
+    db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(JSON.stringify(sessions), String(telegramId));
+    return token;
+  }
 
-  db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(JSON.stringify(tokens), String(telegramId));
+  // Слоты заняты — обновляем токен существующего слота если это то же устройство
+  // (re-login с уже зарегистрированного устройства — просто обновляем токен)
+  // Определяем по token_id в старом токене — если декодируется валидно, это переlogин
+  // Заменяем самый старый токен новым (re-login)
+  sessions.sort((a, b) => a.added - b.added);
+  sessions[0] = { token, added: Date.now() }; // обновляем самый старый слот
+  db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(JSON.stringify(sessions), String(telegramId));
   return token;
+}
+
+// Проверяем можно ли добавить новое устройство (не re-login)
+function canAddDevice(telegramId) {
+  const user = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(String(telegramId));
+  let sessions = [];
+  try { sessions = JSON.parse(user?.active_token || '[]'); } catch { sessions = []; }
+  return sessions.length < MAX_DEVICES;
 }
 
 function verifySession(token) {
@@ -75,12 +91,12 @@ function verifySession(token) {
   try {
     const p = JSON.parse(Buffer.from(b64, 'base64url').toString());
     if (p.exp < Date.now()) return null;
-    // Проверяем что токен есть в списке активных
+    // Проверяем что токен есть в списке зарегистрированных устройств
     const user = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(String(p.telegram_id));
-    let tokens = [];
-    try { tokens = JSON.parse(user?.active_token || '[]'); } catch { tokens = []; }
-    if (!Array.isArray(tokens)) tokens = user?.active_token ? [user.active_token] : [];
-    if (!tokens.includes(token)) return null;
+    let sessions = [];
+    try { sessions = JSON.parse(user?.active_token || '[]'); } catch { sessions = []; }
+    if (!Array.isArray(sessions)) return null;
+    if (!sessions.some(s => s.token === token)) return null;
     return p;
   } catch { return null; }
 }
@@ -138,13 +154,29 @@ app.post('/api/auth/telegram', async (req, res) => {
 
   // Upsert пользователя в БД
   const isAdmin = ADMIN_IDS.has(String(telegramId));
-  const existing = db.prepare('SELECT id, role FROM users WHERE telegram_id = ?').get(telegramId);
+  const existing = db.prepare('SELECT id, role, active_token FROM users WHERE telegram_id = ?').get(telegramId);
   if (!existing) {
     db.prepare(`INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, role) VALUES (?, ?, ?, ?, ?, ?)`)
       .run(telegramId, data.first_name || 'Пользователь', data.last_name || '', data.username || '', data.photo_url || '', isAdmin ? 'admin' : 'student');
   } else {
     db.prepare(`UPDATE users SET last_seen = datetime('now'), first_name = ?, username = ?, photo_url = ?, role = ? WHERE telegram_id = ?`)
       .run(data.first_name || '', data.username || '', data.photo_url || '', isAdmin ? 'admin' : (existing.role || 'student'), telegramId);
+  }
+
+  // Проверка лимита устройств (кроме админов)
+  if (!isAdmin) {
+    const userNow = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(telegramId);
+    let sessions = [];
+    try { sessions = JSON.parse(userNow?.active_token || '[]'); } catch { sessions = []; }
+    if (!Array.isArray(sessions)) sessions = [];
+
+    if (sessions.length >= MAX_DEVICES) {
+      // Это точно новое устройство — все слоты заняты
+      return res.status(403).json({
+        error: 'device_limit',
+        message: 'Достигнут лимит устройств (2). Обратитесь к администратору для сброса устройств.'
+      });
+    }
   }
 
   const user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramId);
@@ -349,6 +381,14 @@ app.delete('/api/me/employees/:id', requireAuth, (req, res) => {
   const owner = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
   db.prepare('DELETE FROM employees WHERE id = ? AND owner_id = ?').run(req.params.id, owner?.id);
   res.json({ ok: true });
+});
+
+// ── ADMIN: сброс устройств пользователя ──
+app.post('/api/admin/reset-devices', requireAuth, requireAdmin, (req, res) => {
+  const { telegram_id } = req.body;
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id_required' });
+  db.prepare("UPDATE users SET active_token = '[]' WHERE telegram_id = ?").run(String(telegram_id));
+  res.json({ ok: true, message: 'Устройства сброшены. Пользователь может войти заново.' });
 });
 
 // ── ADMIN: список администраторов ──
