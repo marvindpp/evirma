@@ -258,7 +258,22 @@ app.get('/api/contractors', requireAuth, (req, res) => {
   res.json({ contractors, categories });
 });
 
-// ── СОТРУДНИКИ ──
+app.get('/api/me/profile-data', requireAuth, (req, res) => {
+  const s = db.prepare('SELECT city, niche, revenue, goal, strengths, email, phone FROM students WHERE telegram_id = ?').get(req.user.telegram_id);
+  res.json({ data: s || null });
+});
+
+app.patch('/api/me/profile-data', requireAuth, (req, res) => {
+  const { city, niche, revenue, goal } = req.body;
+  const existing = db.prepare('SELECT id FROM students WHERE telegram_id = ?').get(req.user.telegram_id);
+  if (existing) {
+    db.prepare('UPDATE students SET city=COALESCE(?,city), niche=COALESCE(?,niche), revenue=COALESCE(?,revenue), goal=COALESCE(?,goal) WHERE telegram_id=?')
+      .run(city||null, niche||null, revenue||null, goal||null, req.user.telegram_id);
+  }
+  res.json({ ok: true });
+});
+
+
 app.get('/api/me/employees', requireAuth, (req, res) => {
   const owner = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
   if (!owner) return res.json({ employees: [], slots: 5 });
