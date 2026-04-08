@@ -137,7 +137,8 @@ app.post('/api/auth/telegram', async (req, res) => {
            ((data.first_name || '') + ' ' + (data.last_name || '')).trim() || data.username || 'Участник');
   } else if (inStudents) {
     // Обновляем статус подписки
-    db.prepare('UPDATE students SET sub_active = ? WHERE telegram_id = ?').run(sub.active ? 1 : 0, telegramId);
+    db.prepare('UPDATE students SET sub_active = ?, telegram_user = COALESCE(NULLIF(?,\'\'), telegram_user), first_name = COALESCE(NULLIF(?,\'\'), first_name) WHERE telegram_id = ?')
+      .run(sub.active ? 1 : 0, data.username||'', data.first_name||'', telegramId);
   }
 
   res.json({
@@ -238,18 +239,19 @@ app.get('/api/me/progress', requireAuth, (req, res) => {
 // ── УЧЕНИКИ ──
 app.get('/api/students', requireAuth, (req, res) => {
   const { city, niche, revenue, search, page = 1, limit = 24 } = req.query;
-  let sql = 'SELECT * FROM students WHERE can_share = 1';
+  let sql = 'SELECT s.*, u.photo_url FROM students s LEFT JOIN users u ON u.telegram_id = s.telegram_id WHERE s.can_share = 1';
   const params = [];
 
-  if (city)    { sql += ' AND city = ?';         params.push(city); }
-  if (niche)   { sql += ' AND niche LIKE ?';     params.push(`%${niche}%`); }
-  if (revenue) { sql += ' AND revenue LIKE ?';   params.push(`%${revenue}%`); }
+  if (city)    { sql += ' AND s.city = ?';              params.push(city); }
+  if (niche)   { sql += ' AND s.niche LIKE ?';          params.push(`%${niche}%`); }
+  if (revenue) { sql += ' AND s.revenue LIKE ?';        params.push(`%${revenue}%`); }
   if (search)  {
-    sql += ' AND (full_name LIKE ? OR telegram_user LIKE ? OR niche LIKE ? OR goal LIKE ?)';
+    sql += ' AND (s.full_name LIKE ? OR s.telegram_user LIKE ? OR s.niche LIKE ? OR s.goal LIKE ?)';
     params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  const total = db.prepare(sql.replace('SELECT *', 'SELECT COUNT(*) as cnt')).get(...params).cnt;
+  const countSql = 'SELECT COUNT(*) as cnt FROM students s WHERE s.can_share = 1' + sql.split('WHERE s.can_share = 1')[1].split(' LIMIT')[0];
+  const total = db.prepare(countSql).get(...params).cnt;
   sql += ` LIMIT ? OFFSET ?`;
   params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
 
@@ -324,6 +326,21 @@ app.post('/api/me/employees', requireAuth, (req, res) => {
 app.delete('/api/me/employees/:id', requireAuth, (req, res) => {
   const owner = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
   db.prepare('DELETE FROM employees WHERE id = ? AND owner_id = ?').run(req.params.id, owner?.id);
+  res.json({ ok: true });
+});
+
+// ── ADMIN: список администраторов ──
+app.get('/api/admin/list-admins', requireAuth, requireAdmin, (req, res) => {
+  const admins = db.prepare("SELECT telegram_id, first_name, username, photo_url, created_at FROM users WHERE role = 'admin' ORDER BY created_at").all();
+  res.json({ admins });
+});
+
+// ── ADMIN: убрать права администратора ──
+app.post('/api/admin/revoke-admin', requireAuth, requireAdmin, (req, res) => {
+  const { telegram_id } = req.body;
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id_required' });
+  if (String(telegram_id) === String(req.user.telegram_id)) return res.status(400).json({ error: 'cannot_revoke_self' });
+  db.prepare("UPDATE users SET role = 'student' WHERE telegram_id = ?").run(String(telegram_id));
   res.json({ ok: true });
 });
 
