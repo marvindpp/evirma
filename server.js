@@ -264,11 +264,21 @@ app.get('/api/me/profile-data', requireAuth, (req, res) => {
 });
 
 app.patch('/api/me/profile-data', requireAuth, (req, res) => {
-  const { city, niche, revenue, goal } = req.body;
+  const { full_name, city, niche, revenue, goal, strengths, email, phone, can_share } = req.body;
   const existing = db.prepare('SELECT id FROM students WHERE telegram_id = ?').get(req.user.telegram_id);
   if (existing) {
-    db.prepare('UPDATE students SET city=COALESCE(?,city), niche=COALESCE(?,niche), revenue=COALESCE(?,revenue), goal=COALESCE(?,goal) WHERE telegram_id=?')
-      .run(city||null, niche||null, revenue||null, goal||null, req.user.telegram_id);
+    db.prepare(`UPDATE students SET
+      full_name  = COALESCE(?, full_name),
+      city       = COALESCE(?, city),
+      niche      = COALESCE(?, niche),
+      revenue    = COALESCE(?, revenue),
+      goal       = COALESCE(?, goal),
+      strengths  = COALESCE(?, strengths),
+      email      = COALESCE(?, email),
+      phone      = COALESCE(?, phone),
+      can_share  = ?
+      WHERE telegram_id = ?`
+    ).run(full_name||null, city||null, niche||null, revenue||null, goal||null, strengths||null, email||null, phone||null, can_share?1:0, req.user.telegram_id);
   }
   res.json({ ok: true });
 });
@@ -301,11 +311,12 @@ app.delete('/api/me/employees/:id', requireAuth, (req, res) => {
 
 // ── ADMIN: управление уроками ──
 app.patch('/api/admin/lessons/:id', requireAuth, requireAdmin, (req, res) => {
-  const { title, module_id } = req.body;
+  const { title, module_id, description } = req.body;
   const updates = [];
   const params  = [];
-  if (title)     { updates.push('title = ?');     params.push(title); }
-  if (module_id) { updates.push('module_id = ?'); params.push(module_id); }
+  if (title !== undefined)       { updates.push('title = ?');       params.push(title); }
+  if (module_id !== undefined)   { updates.push('module_id = ?');   params.push(module_id); }
+  if (description !== undefined) { updates.push('description = ?'); params.push(description); }
   if (!updates.length) return res.status(400).json({ error: 'nothing_to_update' });
   params.push(req.params.id);
   db.prepare(`UPDATE lessons SET ${updates.join(', ')} WHERE id = ?`).run(...params);
