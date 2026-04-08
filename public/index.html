@@ -3363,9 +3363,7 @@ function LessonPlayer({ lesson, onBack, onComplete, onNext, onPrev }) {
         h('div', { className: 'player-module-tag' }, mod?.title),
         h('div', { className: 'player-title' }, lesson.title),
         h('div', { className: 'player-meta-row' },
-          h('div', { className: 'player-meta-item' }, h(Icon.clock), lesson.duration),
-          h('div', { className: 'player-meta-item' }, h(Icon.calendar), lesson.date),
-          h('div', { className: 'player-meta-item' }, h(Icon.users), lesson.views + ' просмотров')
+          h('div', { className: 'player-meta-item' }, h(Icon.clock), lesson.duration)
         )
       ),
       h('div', { className: 'player-actions' },
@@ -3376,12 +3374,9 @@ function LessonPlayer({ lesson, onBack, onComplete, onNext, onPrev }) {
       )
     ),
 
-    h('div', { className: 'player-section' },
+    lesson.description && h('div', { className: 'player-section' },
       h('div', { className: 'player-section-title' }, 'Описание'),
-      h('div', { className: 'player-desc' },
-        h('p', null, 'В этом эфире разбираем настройку рекламы с использованием плагина. Показываем пошаговый процесс от выбора ключей до масштабирования успешных связок.'),
-        h('p', null, 'Работаем на реальных кейсах участников клуба, анализируем ошибки и показываем стратегии повышения CTR и снижения CPM.')
-      )
+      h('div', { style:{fontSize:14,color:'var(--text2)',lineHeight:1.7,whiteSpace:'pre-wrap'} }, lesson.description)
     ),
 
     lesson.description && h('div', { className: 'player-section' },
@@ -4294,6 +4289,65 @@ function AdminContent({ onDataChange }) {
 }
 
 // ===== APP =====
+// Маппинг названий разделов из API → slug для moduleIconStyle
+const MODULE_SLUG_MAP = {
+  'Эфиры с Максом':            'efiry-max',
+  'Эфиры со спикерами':        'efiry-spikery',
+  'Разборы топов':              'razbory-topov',
+  'Разборы участников':         'razbory-uch',
+  'Разборы рекламных кампаний': 'razbory-rk',
+  'Таблицы':                    'tablicy',
+  'Мини-курсы':                 'mini-kursy',
+};
+const MODULE_ICON_MAP = {
+  'Эфиры с Максом':            'mic',
+  'Эфиры со спикерами':        'users',
+  'Разборы топов':              'trending',
+  'Разборы участников':         'target',
+  'Разборы рекламных кампаний': 'zap',
+  'Таблицы':                    'table',
+  'Мини-курсы':                 'book',
+};
+
+async function loadApiData() {
+  const [mods, lsn] = await Promise.all([api.get('/api/modules'), api.get('/api/lessons')]);
+
+  // Полностью заменяем MODULES данными из API
+  MODULES.length = 0;
+  mods.modules.forEach(m => {
+    const slug = MODULE_SLUG_MAP[m.title] || m.slug || m.title;
+    MODULES.push({
+      id: slug,
+      title: m.title,
+      icon: MODULE_ICON_MAP[m.title] || 'book',
+      total: m.lesson_count,
+      done: 0,
+    });
+  });
+
+  // Полностью заменяем LESSONS данными из API
+  LESSONS.length = 0;
+  lsn.lessons.forEach(l => {
+    const mod = MODULES.find(m => m.title === (mods.modules.find(x => x.id === l.module_id)?.title));
+    LESSONS.push({
+      id:          l.id,            // Kinescope UUID
+      kinescopeId: l.id,            // плеер использует kinescopeId
+      moduleId:    mod?.id || '',
+      title:       l.title,
+      description: l.description || '',
+      duration:    l.duration,
+      duration_sec: l.duration_sec,
+      embed_url:   l.embed_url,
+      done:        !!l.watched,
+      isNew:       false,
+      date:        l.created_at ? new Date(l.created_at).toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric'}) : '',
+      views:       0,
+    });
+  });
+
+  recomputeModuleCounts();
+}
+
 function App() {
   const [user,          setUser]          = useState(null);  // null = не авторизован
   const [appLoading,    setAppLoading]    = useState(true);  // проверка существующей сессии
@@ -4308,22 +4362,7 @@ function App() {
     if (!token) { setAppLoading(false); return; }
     api.get('/api/me')
       .then(res => {
-        // Параллельно грузим разделы и уроки из API
-        return api.get('/api/modules').then(mods => {
-          mods.modules.forEach(m => {
-            const idx = MODULES.findIndex(x => x.id === m.id || x.title === m.title);
-            if (idx >= 0) MODULES[idx] = { ...MODULES[idx], total: m.lesson_count };
-          });
-          return api.get('/api/lessons');
-        }).then(lsn => {
-          // Синхронизируем статус "просмотрено" с БД
-          lsn.lessons.forEach(apiL => {
-            const local = LESSONS.find(l => l.id === apiL.id);
-            if (local) local.done = !!apiL.watched;
-          });
-          recomputeModuleCounts();
-          setUser(res.user);
-        });
+        return loadApiData().then(() => { setUser(res.user); });
       })
       .catch(() => { clearToken(); })
       .finally(() => setAppLoading(false));
@@ -4333,19 +4372,7 @@ function App() {
 
   if (!user) return h(AuthPage, {
     onLogin: (userData) => {
-      // После логина подгружаем реальные данные из API
-      Promise.all([api.get('/api/modules'), api.get('/api/lessons')])
-        .then(([mods, lsn]) => {
-          mods.modules.forEach(m => {
-            const idx = MODULES.findIndex(x => x.id === m.id || x.title === m.title);
-            if (idx >= 0) MODULES[idx] = { ...MODULES[idx], total: m.lesson_count };
-          });
-          lsn.lessons.forEach(apiL => {
-            const local = LESSONS.find(l => l.id === apiL.id);
-            if (local) local.done = !!apiL.watched;
-          });
-          recomputeModuleCounts();
-        }).catch(()=>{});
+      loadApiData().catch(()=>{});
       setUser(userData);
     }
   });
