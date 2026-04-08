@@ -3232,7 +3232,7 @@ function Dashboard({ onNavigate, onLessonClick, user }) {
       h('button', { className: 'section-link', onClick: () => onNavigate('knowledge') }, 'Смотреть все', h(Icon.chevronRight))
     ),
     h('div', { className: 'lessons-list' },
-      ...recentLessons.map(lesson => {
+      ...LESSONS.slice(0, 5).map(lesson => {
         const mod = MODULES.find(m => m.id === lesson.moduleId);
         return h('div', { key: lesson.id, className: 'lesson-card', onClick: () => onLessonClick(lesson) },
           h('div', { className: 'lesson-thumb' },
@@ -3244,14 +3244,12 @@ function Dashboard({ onNavigate, onLessonClick, user }) {
             h('div', { className: 'lesson-meta' },
               h('span', null, mod?.title),
               h('span', { className: 'lesson-meta-dot' }, '•'),
-              h('span', null, lesson.date),
-              h('span', { className: 'lesson-meta-dot' }, '•'),
-              h('span', null, lesson.views + ' просмотров')
+              h('span', null, lesson.duration)
             )
           ),
           lesson.done
             ? h('div', { className: 'lesson-status done' }, h(Icon.check), 'Просмотрено')
-            : lesson.isNew ? h('div', { className: 'lesson-status new' }, 'Новое') : null
+            : null
         );
       })
     )
