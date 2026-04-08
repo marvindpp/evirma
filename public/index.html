@@ -3579,7 +3579,10 @@ function StudentsBase() {
             ...students.map(student =>
               h('div', { key: student.id, className: 'student-card', onClick: () => setActiveStudent(student) },
                 h('div', { className: 'student-head' },
-                  h('div', { className: 'student-avatar', style: avatarStyle(student.id) }, student.initials),
+                  student.photo_url
+                  ? h('img', { src: student.photo_url, className: 'student-avatar', style:{objectFit:'cover'}, onError: e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; } })
+                  : null,
+                !student.photo_url && h('div', { className: 'student-avatar', style: avatarStyle(student.id) }, student.initials),
                   h('div', { className: 'student-head-info' },
                     h('div', { className: 'student-name' }, student.name),
                     student.revenue !== '—' && h('div', { className: 'student-role-tag seller' }, student.revenue)
@@ -3974,6 +3977,7 @@ function AdminContractors({ onDataChange }) {
 // ===== ADMIN: STUDENTS =====
 function AdminStudents() {
   const [students,   setStudents]   = useState([]);
+  const [admins,     setAdmins]     = useState([]);
   const [search,     setSearch]     = useState('');
   const [page,       setPage]       = useState(1);
   const [total,      setTotal]      = useState(0);
@@ -3981,8 +3985,9 @@ function AdminStudents() {
   const [loading,    setLoading]    = useState(true);
   const [adminInput, setAdminInput] = useState('');
   const [adminMsg,   setAdminMsg]   = useState('');
+  const [activeTab,  setActiveTab]  = useState('students'); // 'students' | 'admins'
 
-  useEffect(() => {
+  function loadStudents() {
     setLoading(true);
     const params = new URLSearchParams({ page, limit: 20 });
     if (search) params.set('search', search);
@@ -3990,25 +3995,59 @@ function AdminStudents() {
       setStudents(r.students.map(s => ({...s, name: s.full_name||s.first_name||'—', handle: s.telegram_user ? '@'+s.telegram_user : '—' })));
       setTotal(r.total); setPages(r.pages||1);
     }).catch(()=>{}).finally(()=>setLoading(false));
-  }, [search, page]);
+  }
 
+  function loadAdmins() {
+    api.get('/api/admin/list-admins').then(r => setAdmins(r.admins)).catch(()=>{});
+  }
+
+  useEffect(() => { loadStudents(); }, [search, page]);
   useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => { if (activeTab === 'admins') loadAdmins(); }, [activeTab]);
 
   async function grantAdmin() {
     if (!adminInput.trim()) return;
     try {
       const res = await api.post('/api/admin/grant-admin', { identifier: adminInput.trim() });
-      setAdminMsg('✅ Роль админа выдана: ' + (res.username || res.telegram_id));
+      setAdminMsg('✅ Права выданы: ' + (res.username ? '@'+res.username : res.telegram_id));
       setAdminInput('');
+      loadAdmins();
     } catch(e) {
-      setAdminMsg('❌ Ошибка: ' + (e.message || 'пользователь не найден'));
+      const isNotFound = e.message === 'user_not_found';
+      setAdminMsg(isNotFound
+        ? '❌ Пользователь не найден. Он должен сначала войти на сайт через Telegram.'
+        : '❌ Ошибка: ' + e.message);
     }
-    setTimeout(() => setAdminMsg(''), 4000);
+    setTimeout(() => setAdminMsg(''), 5000);
   }
 
+  async function revokeAdmin(telegramId, name) {
+    if (!confirm('Убрать права администратора у ' + name + '?')) return;
+    try {
+      await api.post('/api/admin/revoke-admin', { telegram_id: telegramId });
+      loadAdmins();
+    } catch(e) { alert('Ошибка: ' + e.message); }
+  }
+
+  const tabStyle = (t) => ({
+    padding:'8px 16px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:600,
+    background: activeTab===t ? 'var(--accent)' : 'var(--bg3)',
+    color: activeTab===t ? 'white' : 'var(--text-dim)'
+  });
+
   return h('div', null,
+    // Переключатель вкладок
+    h('div', { style:{display:'flex',gap:8,marginBottom:16} },
+      h('button', { style:tabStyle('students'), onClick:()=>setActiveTab('students') }, '👥 Участники (' + total + ')'),
+      h('button', { style:tabStyle('admins'), onClick:()=>setActiveTab('admins') }, '🛡 Администраторы')
+    ),
+
+    // Блок управления админами
     h('div', { style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',marginBottom:16} },
       h('div', { style:{fontSize:13,fontWeight:700,marginBottom:10,color:'var(--text)'} }, '🛡 Назначить администратора'),
+      h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:10,lineHeight:1.5} },
+        '⚠️ Пользователь должен сначала войти на сайт через Telegram — только тогда он появится в системе.'
+      ),
       h('div', { style:{display:'flex',gap:8,alignItems:'center'} },
         h('input', {
           style:{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13},
@@ -4017,54 +4056,86 @@ function AdminStudents() {
           onChange: e => setAdminInput(e.target.value),
           onKeyDown: e => e.key === 'Enter' && grantAdmin()
         }),
-        h('button', {
-          onClick: grantAdmin,
-          style:{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,whiteSpace:'nowrap'}
-        }, 'Выдать права')
+        h('button', { onClick:grantAdmin, style:{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,whiteSpace:'nowrap'} }, 'Выдать права')
       ),
-      adminMsg && h('div', { style:{marginTop:8,fontSize:13,color: adminMsg.startsWith('✅') ? 'var(--green)' : '#FF5B5B'} }, adminMsg)
+      adminMsg && h('div', { style:{marginTop:8,fontSize:13,color: adminMsg.startsWith('✅') ? 'var(--green)' : '#FF5B5B',lineHeight:1.5} }, adminMsg)
     ),
-    h('div', { style:{display:'flex',gap:10,marginBottom:16,alignItems:'center'} },
-      h('div', { className:'admin-search', style:{flex:1} },
-        h(Icon.search),
-        h('input', { placeholder:'Поиск по имени, нику...', value:search, onChange:e=>setSearch(e.target.value) })
-      ),
-      h('div', { style:{fontSize:13,color:'var(--text-dim)',whiteSpace:'nowrap'} }, 'Всего: ' + total)
-    ),
-    loading
-      ? h('div', { style:{textAlign:'center',padding:40,color:'var(--text-dim)'} }, 'Загрузка...')
-      : h('div', { className:'admin-table' },
-          h('table', { style:{width:'100%',borderCollapse:'collapse'} },
+
+    // Список администраторов
+    activeTab === 'admins' && h('div', { className:'admin-table' },
+      admins.length === 0
+        ? h('div', { style:{textAlign:'center',padding:30,color:'var(--text-dim)'} }, 'Нет данных')
+        : h('table', { style:{width:'100%',borderCollapse:'collapse'} },
             h('thead', null,
               h('tr', null,
-                ...['Имя','Telegram','Город','Ниша','Выручка','Подписка'].map(col =>
+                ...['Имя','Telegram ID','Username','Добавлен',''].map(col =>
                   h('th', { key:col, style:{textAlign:'left',padding:'8px 12px',fontSize:12,color:'var(--text-dim)',borderBottom:'1px solid var(--border)',fontWeight:600} }, col)
                 )
               )
             ),
             h('tbody', null,
-              ...students.map(s =>
-                h('tr', { key:s.id, style:{borderBottom:'1px solid var(--border)'} },
-                  h('td', { style:{padding:'8px 12px',fontSize:13,fontWeight:600} }, s.name),
-                  h('td', { style:{padding:'8px 12px',fontSize:12,color:'var(--accent)'} }, s.handle),
-                  h('td', { style:{padding:'8px 12px',fontSize:12} }, s.city||'—'),
-                  h('td', { style:{padding:'8px 12px',fontSize:12} }, s.niche||'—'),
-                  h('td', { style:{padding:'8px 12px',fontSize:12} }, s.revenue||'—'),
-                  h('td', { style:{padding:'8px 12px'} },
-                    h('span', { style:{fontSize:11,padding:'2px 8px',borderRadius:4,background:s.sub_active?'rgba(61,214,140,0.15)':'rgba(255,91,91,0.1)',color:s.sub_active?'var(--green)':'#FF5B5B',fontWeight:600} },
-                      s.sub_active ? 'Активна' : 'Нет'
-                    )
+              ...admins.map(a =>
+                h('tr', { key:a.telegram_id, style:{borderBottom:'1px solid var(--border)'} },
+                  h('td', { style:{padding:'10px 12px',fontSize:13,fontWeight:600} }, a.first_name || '—'),
+                  h('td', { style:{padding:'10px 12px',fontSize:12,color:'var(--text-dim)'} }, a.telegram_id),
+                  h('td', { style:{padding:'10px 12px',fontSize:12,color:'var(--accent)'} }, a.username ? '@'+a.username : '—'),
+                  h('td', { style:{padding:'10px 12px',fontSize:12,color:'var(--text-dim)'} }, a.created_at ? new Date(a.created_at).toLocaleDateString('ru-RU') : '—'),
+                  h('td', { style:{padding:'10px 12px'} },
+                    h('button', {
+                      onClick: () => revokeAdmin(a.telegram_id, a.first_name || a.telegram_id),
+                      style:{background:'rgba(255,91,91,0.1)',border:'1px solid rgba(255,91,91,0.3)',borderRadius:6,padding:'4px 10px',fontSize:12,cursor:'pointer',color:'#FF5B5B'}
+                    }, 'Убрать права')
                   )
                 )
               )
             )
-          ),
-          pages > 1 && h('div', { className:'pagination', style:{marginTop:16} },
-            h('button', { className:'page-btn', disabled:page===1, onClick:()=>setPage(p=>p-1) }, h(Icon.chevronLeft), 'Назад'),
-            h('div', { className:'page-info' }, 'Стр. ', h('strong',null,page), ' из ', pages),
-            h('button', { className:'page-btn', disabled:page===pages, onClick:()=>setPage(p=>p+1) }, 'Вперёд', h(Icon.chevronRight))
           )
-        )
+    ),
+
+    // Список учеников
+    activeTab === 'students' && h('div', null,
+      h('div', { style:{display:'flex',gap:10,marginBottom:16,alignItems:'center'} },
+        h('div', { className:'admin-search', style:{flex:1} },
+          h(Icon.search),
+          h('input', { placeholder:'Поиск по имени, нику...', value:search, onChange:e=>setSearch(e.target.value) })
+        ),
+        h('div', { style:{fontSize:13,color:'var(--text-dim)',whiteSpace:'nowrap'} }, 'Всего: ' + total)
+      ),
+      loading
+        ? h('div', { style:{textAlign:'center',padding:40,color:'var(--text-dim)'} }, 'Загрузка...')
+        : h('div', { className:'admin-table' },
+            h('table', { style:{width:'100%',borderCollapse:'collapse'} },
+              h('thead', null,
+                h('tr', null,
+                  ...['Имя','Telegram','Город','Ниша','Выручка','Подписка'].map(col =>
+                    h('th', { key:col, style:{textAlign:'left',padding:'8px 12px',fontSize:12,color:'var(--text-dim)',borderBottom:'1px solid var(--border)',fontWeight:600} }, col)
+                  )
+                )
+              ),
+              h('tbody', null,
+                ...students.map(s =>
+                  h('tr', { key:s.id, style:{borderBottom:'1px solid var(--border)'} },
+                    h('td', { style:{padding:'8px 12px',fontSize:13,fontWeight:600} }, s.name),
+                    h('td', { style:{padding:'8px 12px',fontSize:12,color:'var(--accent)'} }, s.handle),
+                    h('td', { style:{padding:'8px 12px',fontSize:12} }, s.city||'—'),
+                    h('td', { style:{padding:'8px 12px',fontSize:12} }, s.niche||'—'),
+                    h('td', { style:{padding:'8px 12px',fontSize:12} }, s.revenue||'—'),
+                    h('td', { style:{padding:'8px 12px'} },
+                      h('span', { style:{fontSize:11,padding:'2px 8px',borderRadius:4,background:s.sub_active?'rgba(61,214,140,0.15)':'rgba(255,91,91,0.1)',color:s.sub_active?'var(--green)':'#FF5B5B',fontWeight:600} },
+                        s.sub_active ? 'Активна' : 'Нет'
+                      )
+                    )
+                  )
+                )
+              )
+            ),
+            pages > 1 && h('div', { className:'pagination', style:{marginTop:16} },
+              h('button', { className:'page-btn', disabled:page===1, onClick:()=>setPage(p=>p-1) }, h(Icon.chevronLeft), 'Назад'),
+              h('div', { className:'page-info' }, 'Стр. ', h('strong',null,page), ' из ', pages),
+              h('button', { className:'page-btn', disabled:page===pages, onClick:()=>setPage(p=>p+1) }, 'Вперёд', h(Icon.chevronRight))
+            )
+          )
+    )
   );
 }
 
