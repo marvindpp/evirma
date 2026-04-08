@@ -560,11 +560,20 @@
     justify-content: center;
     overflow: hidden;
   }
+  .lesson-thumb img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 9px;
+  }
   .lesson-thumb::before {
     content: '';
     position: absolute;
     inset: 0;
     background: radial-gradient(circle at 30% 40%, rgba(255,107,44,0.2), transparent 60%);
+    z-index: 1;
   }
   .lesson-thumb svg {
     width: 18px;
@@ -3236,6 +3245,7 @@ function Dashboard({ onNavigate, onLessonClick, user }) {
         const mod = MODULES.find(m => m.id === lesson.moduleId);
         return h('div', { key: lesson.id, className: 'lesson-card', onClick: () => onLessonClick(lesson) },
           h('div', { className: 'lesson-thumb' },
+            lesson.embed_url && h('img', { src: lesson.poster_url, loading:'lazy', onError: e => { e.target.style.display='none'; } }),
             h(Icon.play),
             h('div', { className: 'lesson-thumb-duration' }, lesson.duration)
           ),
@@ -3312,6 +3322,7 @@ function KnowledgeBase({ onLessonClick }) {
             const mod = MODULES.find(m => m.id === lesson.moduleId);
             return h('div', { key: lesson.id, className: 'lesson-card', onClick: () => onLessonClick(lesson) },
               h('div', { className: 'lesson-thumb' },
+                lesson.embed_url && h('img', { src: lesson.poster_url, loading:'lazy', onError: e => { e.target.style.display='none'; } }),
                 h(Icon.play),
                 h('div', { className: 'lesson-thumb-duration' }, lesson.duration)
               ),
@@ -3962,12 +3973,14 @@ function AdminContractors({ onDataChange }) {
 
 // ===== ADMIN: STUDENTS =====
 function AdminStudents() {
-  const [students, setStudents] = useState([]);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [pages, setPages] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [students,   setStudents]   = useState([]);
+  const [search,     setSearch]     = useState('');
+  const [page,       setPage]       = useState(1);
+  const [total,      setTotal]      = useState(0);
+  const [pages,      setPages]      = useState(1);
+  const [loading,    setLoading]    = useState(true);
+  const [adminInput, setAdminInput] = useState('');
+  const [adminMsg,   setAdminMsg]   = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -3981,7 +3994,36 @@ function AdminStudents() {
 
   useEffect(() => { setPage(1); }, [search]);
 
+  async function grantAdmin() {
+    if (!adminInput.trim()) return;
+    try {
+      const res = await api.post('/api/admin/grant-admin', { identifier: adminInput.trim() });
+      setAdminMsg('✅ Роль админа выдана: ' + (res.username || res.telegram_id));
+      setAdminInput('');
+    } catch(e) {
+      setAdminMsg('❌ Ошибка: ' + (e.message || 'пользователь не найден'));
+    }
+    setTimeout(() => setAdminMsg(''), 4000);
+  }
+
   return h('div', null,
+    h('div', { style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:12,padding:'14px 16px',marginBottom:16} },
+      h('div', { style:{fontSize:13,fontWeight:700,marginBottom:10,color:'var(--text)'} }, '🛡 Назначить администратора'),
+      h('div', { style:{display:'flex',gap:8,alignItems:'center'} },
+        h('input', {
+          style:{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13},
+          placeholder:'@username или Telegram ID',
+          value: adminInput,
+          onChange: e => setAdminInput(e.target.value),
+          onKeyDown: e => e.key === 'Enter' && grantAdmin()
+        }),
+        h('button', {
+          onClick: grantAdmin,
+          style:{padding:'8px 16px',borderRadius:8,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,whiteSpace:'nowrap'}
+        }, 'Выдать права')
+      ),
+      adminMsg && h('div', { style:{marginTop:8,fontSize:13,color: adminMsg.startsWith('✅') ? 'var(--green)' : '#FF5B5B'} }, adminMsg)
+    ),
     h('div', { style:{display:'flex',gap:10,marginBottom:16,alignItems:'center'} },
       h('div', { className:'admin-search', style:{flex:1} },
         h(Icon.search),
@@ -4338,7 +4380,7 @@ async function loadApiData() {
       duration:    l.duration,
       duration_sec: l.duration_sec,
       embed_url:   l.embed_url,
-      done:        !!l.watched,
+      poster_url:  l.poster_url || '',
       isNew:       false,
       date:        l.created_at ? new Date(l.created_at).toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric'}) : '',
       views:       0,
@@ -4348,13 +4390,101 @@ async function loadApiData() {
   recomputeModuleCounts();
 }
 
+// ===== ONBOARDING — анкета при первом входе =====
+function OnboardingForm({ user, onComplete }) {
+  const [form, setForm] = useState({
+    city: '', niche: '', revenue: '', goal: '', strengths: '', can_share: true
+  });
+  const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState(1); // 2 шага
+
+  const inp = {
+    style:{width:'100%',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 14px',color:'var(--text)',fontSize:14,boxSizing:'border-box',fontFamily:'inherit'},
+  };
+
+  async function submit() {
+    setSaving(true);
+    try {
+      await api.patch('/api/me/profile-data', form);
+      onComplete();
+    } catch(e) { alert('Ошибка: ' + e.message); }
+    setSaving(false);
+  }
+
+  return h('div', { style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)',padding:'24px'} },
+    h('div', { style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:20,padding:'32px',maxWidth:480,width:'100%'} },
+      h('div', { style:{display:'flex',alignItems:'center',gap:12,marginBottom:8} },
+        h(Logo, { size: 36 }),
+        h('div', { style:{fontSize:18,fontWeight:700,color:'var(--text)'} }, 'Добро пожаловать!')
+      ),
+      h('p', { style:{color:'var(--text-dim)',fontSize:14,marginBottom:24,lineHeight:1.6} },
+        'Привет, ' + (user?.first_name || 'участник') + '! Заполни анкету — другие участники смогут найти тебя в базе клуба.'
+      ),
+
+      h('div', { style:{display:'flex',gap:4,marginBottom:24} },
+        [1,2].map(s => h('div', { key:s, style:{flex:1,height:3,borderRadius:4,background: s<=step ? 'var(--accent)' : 'var(--border)'} }))
+      ),
+
+      step === 1 && h('div', { style:{display:'flex',flexDirection:'column',gap:14} },
+        h('div', null,
+          h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:6,fontWeight:600} }, 'Город'),
+          h('input', { ...inp, placeholder:'Москва, Санкт-Петербург...', value:form.city, onChange:e=>setForm(f=>({...f,city:e.target.value})) })
+        ),
+        h('div', null,
+          h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:6,fontWeight:600} }, 'Ниша на Wildberries'),
+          h('input', { ...inp, placeholder:'Женская одежда, Дом, Детям...', value:form.niche, onChange:e=>setForm(f=>({...f,niche:e.target.value})) })
+        ),
+        h('div', null,
+          h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:6,fontWeight:600} }, 'Годовой оборот'),
+          h('select', { ...inp, value:form.revenue, onChange:e=>setForm(f=>({...f,revenue:e.target.value})) },
+            h('option', {value:''}, 'Выберите...'),
+            ['Новичок','до 10 млн','10-50 млн','50-200 млн','200+ млн'].map(r => h('option',{key:r,value:r},r))
+          )
+        ),
+        h('button', {
+          onClick: ()=>setStep(2),
+          disabled: !form.city || !form.niche || !form.revenue,
+          style:{padding:'12px',borderRadius:10,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:15,fontWeight:700,width:'100%',marginTop:8,opacity:(!form.city||!form.niche||!form.revenue)?0.5:1}
+        }, 'Далее →')
+      ),
+
+      step === 2 && h('div', { style:{display:'flex',flexDirection:'column',gap:14} },
+        h('div', null,
+          h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:6,fontWeight:600} }, 'Цель участия в клубе'),
+          h('textarea', { ...inp, placeholder:'Хочу получать актуальную информацию о рекламе на WB...', rows:3, style:{...inp.style,resize:'vertical'}, value:form.goal, onChange:e=>setForm(f=>({...f,goal:e.target.value})) })
+        ),
+        h('div', null,
+          h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:6,fontWeight:600} }, 'Ваши сильные стороны'),
+          h('textarea', { ...inp, placeholder:'Производство, контакты поставщиков, экспертиза в рекламе...', rows:3, style:{...inp.style,resize:'vertical'}, value:form.strengths, onChange:e=>setForm(f=>({...f,strengths:e.target.value})) })
+        ),
+        h('div', { style:{display:'flex',alignItems:'flex-start',gap:10,padding:'12px',background:'var(--bg3)',borderRadius:10,border:'1px solid var(--border)'} },
+          h('input', { type:'checkbox', id:'ob_share', checked:form.can_share, onChange:e=>setForm(f=>({...f,can_share:e.target.checked})), style:{marginTop:2,accentColor:'var(--accent)',cursor:'pointer',width:16,height:16} }),
+          h('label', { htmlFor:'ob_share', style:{cursor:'pointer',fontSize:13,color:'var(--text)',lineHeight:1.5} },
+            h('strong', null, 'Показывать мои контакты другим участникам'),
+            h('div', { style:{fontSize:12,color:'var(--text-dim)',marginTop:2} }, 'Телефон и Telegram будут видны в базе участников')
+          )
+        ),
+        h('div', { style:{display:'flex',gap:8} },
+          h('button', { onClick:()=>setStep(1), style:{padding:'12px 16px',borderRadius:10,background:'var(--bg3)',color:'var(--text)',border:'1px solid var(--border)',cursor:'pointer',fontSize:14} }, '← Назад'),
+          h('button', {
+            onClick: submit, disabled: saving,
+            style:{flex:1,padding:'12px',borderRadius:10,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:15,fontWeight:700}
+          }, saving ? 'Сохранение...' : 'Войти в клуб')
+        ),
+        h('button', { onClick:onComplete, style:{background:'none',border:'none',color:'var(--text-dim)',fontSize:12,cursor:'pointer',textAlign:'center',width:'100%',marginTop:4} }, 'Пропустить, заполню позже')
+      )
+    )
+  );
+}
+
 function App() {
-  const [user,          setUser]          = useState(null);  // null = не авторизован
-  const [appLoading,    setAppLoading]    = useState(true);  // проверка существующей сессии
+  const [user,          setUser]          = useState(null);
+  const [appLoading,    setAppLoading]    = useState(true);
   const [page,          setPage]          = useState('dashboard');
   const [currentLesson, setCurrentLesson] = useState(null);
   const [sidebarOpen,   setSidebarOpen]   = useState(false);
   const [dataVersion,   setDataVersion]   = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Проверяем существующую сессию при загрузке страницы
   useEffect(() => {
@@ -4374,7 +4504,17 @@ function App() {
     onLogin: (userData) => {
       loadApiData().catch(()=>{});
       setUser(userData);
+      // Показываем анкету если пользователь новый (нет города)
+      api.get('/api/me/profile-data').then(r => {
+        if (!r.data || !r.data.city) setShowOnboarding(true);
+      }).catch(()=>{});
     }
+  });
+
+  // Показываем анкету онбординга
+  if (showOnboarding) return h(OnboardingForm, {
+    user,
+    onComplete: () => setShowOnboarding(false)
   });
 
   const role = user?.role || 'student';
