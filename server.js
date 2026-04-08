@@ -128,6 +128,18 @@ app.post('/api/auth/telegram', async (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramId);
   const session = createSession(telegramId, user.role);
 
+  // Автодобавление в базу учеников если его там нет
+  const inStudents = db.prepare('SELECT id FROM students WHERE telegram_id = ?').get(telegramId);
+  if (!inStudents && sub.active) {
+    db.prepare(`INSERT INTO students (telegram_id, telegram_user, first_name, last_name, full_name, can_share, sub_active)
+      VALUES (?, ?, ?, ?, ?, 0, 1)`)
+      .run(telegramId, data.username || '', data.first_name || '', data.last_name || '',
+           ((data.first_name || '') + ' ' + (data.last_name || '')).trim() || data.username || 'Участник');
+  } else if (inStudents) {
+    // Обновляем статус подписки
+    db.prepare('UPDATE students SET sub_active = ? WHERE telegram_id = ?').run(sub.active ? 1 : 0, telegramId);
+  }
+
   res.json({
     ok: true,
     session,
@@ -313,6 +325,21 @@ app.delete('/api/me/employees/:id', requireAuth, (req, res) => {
   const owner = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
   db.prepare('DELETE FROM employees WHERE id = ? AND owner_id = ?').run(req.params.id, owner?.id);
   res.json({ ok: true });
+});
+
+// ── ADMIN: выдать права администратора ──
+app.post('/api/admin/grant-admin', requireAuth, requireAdmin, (req, res) => {
+  const { identifier } = req.body;
+  if (!identifier) return res.status(400).json({ error: 'identifier_required' });
+
+  // Ищем по telegram_id или username
+  const clean = identifier.replace('@', '').trim();
+  const user = db.prepare('SELECT * FROM users WHERE telegram_id = ? OR username = ?').get(clean, clean);
+
+  if (!user) return res.status(404).json({ error: 'user_not_found', message: 'Пользователь не найден. Он должен сначала войти на сайт.' });
+
+  db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(user.id);
+  res.json({ ok: true, telegram_id: user.telegram_id, username: user.username });
 });
 
 // ── ADMIN: управление уроками ──
