@@ -3143,8 +3143,13 @@ function AuthPage({ onLogin }) {
         const res = await api.post('/api/auth/telegram', tgUser);
         if (res.ok) { setToken(res.session); onLogin(res.user); }
       } catch(e) {
-        if (e.status === 403) setError('Нет активной подписки. Продли в боте @evirmaclub_bot');
-        else setError('Ошибка входа: ' + e.message);
+        if (e.status === 403 && e.message === 'device_limit') {
+          setError('device_limit');
+        } else if (e.status === 403) {
+          setError('Нет активной подписки. Продли в боте @evirmaclub_bot');
+        } else {
+          setError('Ошибка входа: ' + e.message);
+        }
         setLoading(false);
       }
     };
@@ -3170,13 +3175,13 @@ function AuthPage({ onLogin }) {
         const res = await api.post('/api/auth/telegram', { id: devId, first_name: 'User', auth_date: Math.floor(Date.now()/1000) });
         if (res.ok) { setToken(res.session); onLogin(res.user); }
       } catch(apiErr) {
-        if (apiErr.status === 403) {
-          const msg = apiErr.message === 'device_limit'
-            ? '🚫 Достигнут лимит устройств (2). Обратитесь к администратору.'
-            : 'Нет активной подписки. Продли в боте @evirmaclub_bot';
-          setError(msg);
+        if (apiErr.status === 403 && apiErr.message === 'device_limit') {
+          setError('device_limit');
+        } else if (apiErr.status === 403) {
+          setError('Нет активной подписки. Продли в боте @evirmaclub_bot');
+        } else {
+          setError('Ошибка: ' + apiErr.message);
         }
-        else setError('Ошибка: ' + apiErr.message);
       }
     } finally { setLoading(false); }
   }
@@ -3192,9 +3197,37 @@ function AuthPage({ onLogin }) {
       ),
       h('h1', { className: 'auth-title' }, 'Добро пожаловать в клуб'),
       h('p', { className: 'auth-sub' }, 'Войдите через Telegram для доступа к эфирам, разборам и базе подрядчиков'),
-      error && h('div', { style:{color:'#FF5B5B',background:'rgba(255,91,91,0.1)',padding:'10px 14px',borderRadius:'10px',marginBottom:'12px',fontSize:'14px'} }, error),
+      error === 'device_limit'
+        ? h('div', { style:{background:'rgba(255,91,91,0.08)',border:'1px solid rgba(255,91,91,0.3)',borderRadius:14,padding:'16px',marginBottom:16} },
+            h('div', { style:{display:'flex',alignItems:'center',gap:10,marginBottom:8} },
+              h('span', { style:{fontSize:22} }, '📱'),
+              h('div', { style:{fontSize:15,fontWeight:800,color:'#FF5B5B'} }, 'Достигнут лимит устройств')
+            ),
+            h('div', { style:{fontSize:13,color:'var(--text2)',lineHeight:1.6,marginBottom:12} },
+              'Ваш аккаунт уже привязан к ',
+              h('strong', { style:{color:'var(--text)'} }, '2 устройствам'),
+              '. Вход с третьего устройства запрещён.',
+              h('br'),
+              'Чтобы освободить слот — обратитесь к администратору в ',
+              h('strong', null, 'Telegram'),
+              ' и попросите сбросить устройства.'
+            ),
+            h('a', {
+              href: 'https://t.me/evirmaclub_bot',
+              target: '_blank',
+              rel: 'noopener',
+              style:{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:'#FF5B5B',color:'white',borderRadius:10,padding:'10px 16px',fontSize:13,fontWeight:700,textDecoration:'none'}
+            },
+              h('svg', { width:16, height:16, viewBox:'0 0 24 24', fill:'white' },
+                h('path', { d:'M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.05 9.658c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.88 14.49l-2.95-.924c-.642-.2-.654-.642.136-.95l11.52-4.44c.537-.194 1.006.13.976.073z' })
+              ),
+              'Написать @evirmaclub_bot'
+            )
+          )
+        : error && h('div', { style:{color:'#FF5B5B',background:'rgba(255,91,91,0.1)',padding:'10px 14px',borderRadius:'10px',marginBottom:'12px',fontSize:'14px'} }, error),
       loading && h('div', { style:{textAlign:'center',padding:'12px',color:'var(--text-dim)'} }, '⏳ Входим...'),
-      h('div', { id: 'tg-widget-wrap', style:{display:'flex',justifyContent:'center',margin:'16px 0',minHeight:48} }),
+      !error && h('div', { id: 'tg-widget-wrap', style:{display:'flex',justifyContent:'center',margin:'16px 0',minHeight:48} }),
+      error && error !== 'device_limit' && h('div', { id: 'tg-widget-wrap', style:{display:'flex',justifyContent:'center',margin:'16px 0',minHeight:48} }),
       h('div', { className: 'auth-note' },
         h('div', { className: 'auth-note-icon' }, h(Icon.shield)),
         h('div', { className: 'auth-note-text' }, 'Авторизация через ваш Telegram-аккаунт. Доступ получают только участники с активной подпиской.')
@@ -4122,7 +4155,11 @@ function AdminStudents() {
   const [loading,    setLoading]    = useState(true);
   const [adminInput, setAdminInput] = useState('');
   const [adminMsg,   setAdminMsg]   = useState('');
-  const [activeTab,  setActiveTab]  = useState('students'); // 'students' | 'admins'
+  const [activeTab,  setActiveTab]  = useState('students'); // 'students' | 'admins' | 'devices'
+  const [devSearch,  setDevSearch]  = useState('');
+  const [devInfo,    setDevInfo]    = useState(null);
+  const [devLoading, setDevLoading] = useState(false);
+  const [devMsg,     setDevMsg]     = useState('');
 
   function loadStudents() {
     setLoading(true);
@@ -4141,6 +4178,28 @@ function AdminStudents() {
   useEffect(() => { loadStudents(); }, [search, page]);
   useEffect(() => { setPage(1); }, [search]);
   useEffect(() => { if (activeTab === 'admins') loadAdmins(); }, [activeTab]);
+
+  async function lookupDevices() {
+    if (!devSearch.trim()) return;
+    setDevLoading(true); setDevInfo(null); setDevMsg('');
+    try {
+      const clean = devSearch.trim().replace('@', '');
+      const info = await api.get('/api/admin/devices/' + clean);
+      setDevInfo({ ...info, identifier: devSearch.trim() });
+    } catch(e) {
+      setDevMsg('❌ Пользователь не найден. Убедитесь что он хотя бы раз входил на сайт.');
+    } finally { setDevLoading(false); }
+  }
+
+  async function resetDevices(telegramId, name) {
+    if (!confirm('Сбросить ВСЕ входы для ' + name + '?\nПользователь выйдет со всех устройств и сможет войти заново.')) return;
+    try {
+      await api.post('/api/admin/reset-devices', { telegram_id: telegramId });
+      setDevMsg('✅ Входы сброшены. Пользователь может войти заново.');
+      setDevInfo(null); setDevSearch('');
+    } catch(e) { setDevMsg('❌ Ошибка: ' + e.message); }
+    setTimeout(() => setDevMsg(''), 4000);
+  }
 
   async function grantAdmin() {
     if (!adminInput.trim()) return;
@@ -4174,9 +4233,95 @@ function AdminStudents() {
 
   return h('div', null,
     // Переключатель вкладок
-    h('div', { style:{display:'flex',gap:8,marginBottom:16} },
+    h('div', { style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'} },
       h('button', { style:tabStyle('students'), onClick:()=>setActiveTab('students') }, '👥 Участники (' + total + ')'),
-      h('button', { style:tabStyle('admins'), onClick:()=>setActiveTab('admins') }, '🛡 Администраторы')
+      h('button', { style:tabStyle('admins'),   onClick:()=>setActiveTab('admins') }, '🛡 Администраторы'),
+      h('button', { style:tabStyle('devices'),  onClick:()=>setActiveTab('devices') }, '📱 Устройства')
+    ),
+
+    // ── Вкладка управления устройствами ──
+    activeTab === 'devices' && h('div', null,
+      h('div', { style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:12,padding:'16px 18px',marginBottom:16} },
+        h('div', { style:{fontSize:14,fontWeight:800,marginBottom:4} }, '📱 Управление устройствами'),
+        h('div', { style:{fontSize:12,color:'var(--text2)',marginBottom:14,lineHeight:1.6} },
+          'Каждый пользователь может войти максимум с ',
+          h('strong', { style:{color:'var(--accent)'} }, '2 устройств'),
+          '. При попытке войти с 3-го — система заблокирует вход. Чтобы дать пользователю возможность войти с нового устройства, сбросьте все его входы ниже.'
+        ),
+        h('div', { style:{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'} },
+          h('input', {
+            style:{flex:1,minWidth:200,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:8,padding:'9px 13px',color:'var(--text)',fontSize:13,outline:'none'},
+            placeholder:'Telegram ID или @username',
+            value: devSearch,
+            onChange: e => setDevSearch(e.target.value),
+            onKeyDown: e => e.key === 'Enter' && lookupDevices()
+          }),
+          h('button', {
+            onClick: lookupDevices,
+            disabled: devLoading,
+            style:{padding:'9px 18px',borderRadius:8,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:13,fontWeight:700,whiteSpace:'nowrap'}
+          }, devLoading ? '...' : 'Проверить')
+        ),
+        devMsg && h('div', { style:{marginTop:10,fontSize:13,fontWeight:700,color: devMsg.startsWith('✅') ? 'var(--green)' : 'var(--red)'} }, devMsg),
+
+        devInfo && h('div', { style:{marginTop:14,background:'var(--bg3)',borderRadius:10,padding:'14px 16px',border:'1px solid var(--border)'} },
+          h('div', { style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'} },
+            h('div', null,
+              h('div', { style:{fontSize:13,fontWeight:800,marginBottom:6} }, 'Идентификатор: ', h('span', { style:{color:'var(--accent)'} }, devInfo.identifier)),
+              h('div', { style:{display:'flex',gap:16,flexWrap:'wrap'} },
+                h('div', null,
+                  h('span', { style:{fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'0.5px',fontWeight:800} }, 'Устройств'),
+                  h('div', { style:{
+                    fontSize:28,fontWeight:900,letterSpacing:'-1px',
+                    color: devInfo.devices_count >= devInfo.max_devices ? 'var(--red)' : 'var(--green)'
+                  } }, devInfo.devices_count + ' / ' + devInfo.max_devices)
+                ),
+                devInfo.sessions.map((s, i) =>
+                  h('div', { key:i, style:{background:'var(--bg4)',borderRadius:8,padding:'8px 12px',minWidth:130} },
+                    h('div', { style:{fontSize:10,fontWeight:800,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:4} }, 'Устройство ' + s.slot),
+                    h('div', { style:{fontSize:11,color:'var(--text2)'} }, '📅 ' + s.added),
+                    s.refreshed && h('div', { style:{fontSize:10,color:'var(--text3)',marginTop:2} }, '🔄 ' + s.refreshed)
+                  )
+                )
+              )
+            ),
+            devInfo.devices_count > 0 && h('button', {
+              onClick: () => resetDevices(devInfo.identifier.replace('@',''), devInfo.identifier),
+              style:{background:'rgba(255,91,91,0.12)',border:'1px solid rgba(255,91,91,0.35)',color:'#FF5B5B',borderRadius:9,padding:'10px 16px',fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}
+            }, '🗑 Сбросить все входы')
+          )
+        )
+      ),
+
+      // Быстрый сброс прямо из таблицы участников (заблокированные)
+      h('div', { style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:12,padding:'12px 16px'} },
+        h('div', { style:{fontSize:12,color:'var(--text3)',fontWeight:700,marginBottom:8,textTransform:'uppercase',letterSpacing:'0.6px'} }, 'Быстрый сброс из списка'),
+        loading
+          ? h('div', { style:{color:'var(--text3)',fontSize:13,padding:'8px 0'} }, 'Загрузка...')
+          : h('div', { style:{display:'flex',flexDirection:'column',gap:6} },
+              students.slice(0,10).map(s =>
+                h('div', { key:s.id, style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:'6px 0',borderBottom:'1px solid var(--border)'} },
+                  h('div', null,
+                    h('span', { style:{fontSize:13,fontWeight:700} }, s.name),
+                    h('span', { style:{fontSize:11,color:'var(--text3)',marginLeft:8} }, s.handle)
+                  ),
+                  h('button', {
+                    onClick: async () => {
+                      if (!s.telegram_id) return;
+                      if (!confirm('Сбросить устройства для ' + s.name + '?')) return;
+                      try {
+                        await api.post('/api/admin/reset-devices', { telegram_id: s.telegram_id });
+                        setDevMsg('✅ Устройства сброшены для ' + s.name);
+                        setTimeout(() => setDevMsg(''), 3000);
+                      } catch(e) { alert('Ошибка: ' + e.message); }
+                    },
+                    style:{background:'rgba(255,184,46,0.1)',border:'1px solid rgba(255,184,46,0.3)',color:'var(--yellow)',borderRadius:7,padding:'4px 12px',fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}
+                  }, 'Сброс')
+                )
+              ),
+              h('div', { style:{fontSize:11,color:'var(--text3)',marginTop:6} }, 'Показано первые 10. Для поиска конкретного — используйте форму выше.')
+            )
+      )
     ),
 
     // Блок управления админами
