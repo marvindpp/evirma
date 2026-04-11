@@ -2565,10 +2565,13 @@ const DEFAULT_LESSONS = [
 
 // Mutable runtime data — initializes from defaults, gets overlaid with admin edits from localStorage
 let MODULES = DEFAULT_MODULES.map(m => ({ ...m }));
-let LESSONS = DEFAULT_LESSONS.map(l => {
-  const override = _stored.lessons?.[l.id];
-  return override ? { ...l, ...override } : { ...l };
-});
+let LESSONS = [
+  ...DEFAULT_LESSONS.map(l => {
+    const override = _stored.lessons?.[l.id];
+    return override ? { ...l, ...override } : { ...l };
+  }),
+  ...(_stored.extraLessons || [])
+];
 // Recompute module counts after overrides applied
 function recomputeModuleCounts() {
   MODULES = MODULES.map(m => {
@@ -2580,15 +2583,22 @@ recomputeModuleCounts();
 
 function persistAdminChanges() {
   const lessonOverrides = {};
-  LESSONS.forEach((l, i) => {
-    const def = DEFAULT_LESSONS[i];
-    if (!def) return;
+  const extraLessons = [];
+  LESSONS.forEach((l) => {
+    const def = DEFAULT_LESSONS.find(d => d.id === l.id);
+    if (!def) {
+      // Newly added lesson — store in full
+      extraLessons.push(l);
+      return;
+    }
     const diff = {};
     if (l.moduleId !== def.moduleId) diff.moduleId = l.moduleId;
     if (l.title !== def.title) diff.title = l.title;
+    if (l.description !== undefined && l.description !== (def.description||'')) diff.description = l.description;
+    if (l.files && l.files.length > 0) diff.files = l.files;
     if (Object.keys(diff).length) lessonOverrides[l.id] = diff;
   });
-  saveStorage({ lessons: lessonOverrides });
+  saveStorage({ lessons: lessonOverrides, extraLessons });
 }
 
 const STUDENTS = [
@@ -4614,6 +4624,7 @@ function AdminContent({ onDataChange }) {
               onClick: () => toggleSelectAll(visibleIds)
             }, h(Icon.check))
           ),
+          h('div', null, 'Превью'),
           h('div', null, 'Название урока'),
           h('div', null, 'Длит.'),
           h('div', null, 'Дата'),
@@ -4630,6 +4641,27 @@ function AdminContent({ onDataChange }) {
                   className: 'admin-checkbox ' + (selected.has(lesson.id) ? 'checked' : ''),
                   onClick: () => toggleSelect(lesson.id)
                 }, h(Icon.check)),
+
+                // Thumbnail
+                h('div', { className: 'admin-thumb' },
+                  lesson.kinescopeId
+                    ? h('img', {
+                        src: 'https://kinescope.io/' + lesson.kinescopeId + '/poster.jpg',
+                        alt: lesson.title,
+                        onError: e => { e.target.style.display='none'; e.target.nextSibling && (e.target.nextSibling.style.display='flex'); }
+                      })
+                    : null,
+                  h('div', {
+                    className: 'admin-thumb-fallback',
+                    style: { display: lesson.kinescopeId ? 'none' : 'flex' }
+                  },
+                    h('svg', { viewBox:'0 0 24 24', fill:'currentColor' },
+                      h('polygon', { points:'5 3 19 12 5 21 5 3' })
+                    )
+                  )
+                ),
+
+                // Title + description + files
                 h('div', { className: 'admin-row-title' },
                   h('input', {
                     className: 'admin-row-title-input',
@@ -4656,8 +4688,13 @@ function AdminContent({ onDataChange }) {
                     h('span', null, lesson.duration),
                     h('span', null, '•'),
                     h('span', null, lesson.date)
-                  )
+                  ),
+                  h(LessonFilesRow, {
+                    lesson,
+                    onSave: () => { persistAdminChanges(); forceUpdate(n=>n+1); showSavedToast(); }
+                  })
                 ),
+
                 h('div', { className: 'admin-row-duration' }, lesson.duration),
                 h('div', { className: 'admin-row-date' }, lesson.date),
                 h('select', {
@@ -4677,6 +4714,11 @@ function AdminContent({ onDataChange }) {
     tab === 'contractors' && h(AdminContractors, { onDataChange }),
 
     tab === 'students' && h(AdminStudents),
+
+    showAddModal && h(AdminAddVideoModal, {
+      onClose: () => setShowAddModal(false),
+      onAdded: () => { forceUpdate(n=>n+1); onDataChange && onDataChange(); showSavedToast(); }
+    }),
 
     savedToast && h('div', { className: 'admin-saved-toast' },
       h(Icon.check),
