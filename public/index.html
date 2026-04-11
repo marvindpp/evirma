@@ -1610,7 +1610,7 @@
   }
   .admin-table-head {
     display: grid;
-    grid-template-columns: 36px 1fr 90px 100px 220px;
+    grid-template-columns: 36px 76px 1fr 90px 100px 220px;
     gap: 1rem;
     padding: 0.85rem 1.25rem;
     background: var(--bg3);
@@ -1623,13 +1623,128 @@
   }
   .admin-row {
     display: grid;
-    grid-template-columns: 36px 1fr 90px 100px 220px;
+    grid-template-columns: 36px 76px 1fr 90px 100px 220px;
     gap: 1rem;
     padding: 0.85rem 1.25rem;
-    align-items: center;
+    align-items: start;
     border-bottom: 1px solid var(--border);
     transition: background 0.15s;
   }
+  .admin-thumb {
+    width: 76px;
+    height: 50px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #1a0f08, #0d0806);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+  .admin-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .admin-thumb-fallback {
+    color: rgba(255,255,255,0.3);
+    width: 20px;
+    height: 20px;
+  }
+  .admin-thumb-fallback svg { width: 20px; height: 20px; }
+  .admin-files-section {
+    margin-top: 8px;
+    border-top: 1px dashed var(--border);
+    padding-top: 6px;
+  }
+  .admin-files-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 5px;
+  }
+  .admin-file-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--bg3);
+    border-radius: 6px;
+    padding: 3px 8px;
+  }
+  .admin-file-chip a { color: var(--accent); text-decoration: none; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .admin-file-chip a:hover { text-decoration: underline; }
+  .admin-file-remove { color: var(--text3); cursor: pointer; flex-shrink: 0; font-size: 13px; line-height: 1; }
+  .admin-file-remove:hover { color: var(--red); }
+  .admin-file-add-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .admin-file-input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 7px;
+    font-size: 11px;
+    color: var(--text);
+    outline: none;
+    min-width: 0;
+  }
+  .admin-file-input:focus { border-color: var(--accent-border); }
+  .admin-file-input::placeholder { color: var(--text3); }
+  .admin-file-add-btn {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .admin-file-add-btn:hover { background: var(--accent); color: white; }
+  .admin-file-toggle {
+    font-size: 10px;
+    color: var(--text3);
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 5px;
+    padding: 2px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .admin-file-toggle:hover { color: var(--accent); }
+  .admin-file-toggle svg { width: 10px; height: 10px; }
+  /* Add video modal */
+  .add-video-modal-inner { max-width: 480px; }
+  .add-video-form { display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem 2rem 2rem; }
+  .add-video-field { display: flex; flex-direction: column; gap: 5px; }
+  .add-video-label { font-size: 11px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; }
+  .add-video-input {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 0.65rem 0.9rem;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .add-video-input:focus { border-color: var(--accent); }
+  .add-video-input::placeholder { color: var(--text3); }
   .admin-row:last-child { border-bottom: none; }
   .admin-row:hover { background: var(--bg3); }
   .admin-row.selected { background: var(--accent-dim); }
@@ -1764,7 +1879,7 @@
   @media (max-width: 768px) {
     .admin-table-head { display: none; }
     .admin-row {
-      grid-template-columns: 28px 1fr;
+      grid-template-columns: 28px 64px 1fr;
       gap: 0.75rem;
       padding: 1rem;
       align-items: start;
@@ -1778,7 +1893,7 @@
       margin-top: 4px;
     }
     .admin-row > .admin-row-duration, .admin-row > .admin-row-date { display: none; }
-    .admin-row > .admin-module-select { grid-column: 2; margin-top: 6px; }
+    .admin-row > .admin-module-select { grid-column: 3; margin-top: 6px; }
     .admin-toolbar { flex-direction: column; align-items: stretch; }
     .role-switcher { bottom: 12px; right: 12px; }
     .role-switcher button { padding: 0.45rem 0.7rem; font-size: 11px; }
@@ -4164,6 +4279,139 @@ function AdminStudents() {
   );
 }
 
+// ===== ADMIN: LESSON FILES ROW =====
+function LessonFilesRow({ lesson, onSave }) {
+  const [open, setOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+  const files = lesson.files || [];
+
+  function addFile() {
+    if (!newName.trim() || !newUrl.trim()) return;
+    const url = newUrl.trim().startsWith('http') ? newUrl.trim() : 'https://' + newUrl.trim();
+    lesson.files = [...files, { name: newName.trim(), url }];
+    api.patch('/api/admin/lessons/' + lesson.id, { files: lesson.files }).catch(()=>{});
+    setNewName(''); setNewUrl('');
+    onSave();
+  }
+
+  function removeFile(i) {
+    lesson.files = files.filter((_, idx) => idx !== i);
+    api.patch('/api/admin/lessons/' + lesson.id, { files: lesson.files }).catch(()=>{});
+    onSave();
+  }
+
+  return h('div', { className: 'admin-files-section' },
+    files.length > 0 && h('div', { className: 'admin-files-list' },
+      files.map((f, i) =>
+        h('div', { key: i, className: 'admin-file-chip' },
+          h('svg', { width:10, height:10, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:2 },
+            h('path', { d:'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4' }),
+            h('polyline', { points:'7 10 12 15 17 10' }),
+            h('line', { x1:12, y1:15, x2:12, y2:3 })
+          ),
+          h('a', { href: f.url, target:'_blank', rel:'noopener' }, f.name),
+          h('span', { className: 'admin-file-remove', onClick: () => removeFile(i) }, '✕')
+        )
+      )
+    ),
+    open && h('div', { className: 'admin-file-add-row' },
+      h('input', { className:'admin-file-input', placeholder:'Название файла', value:newName, onChange:e=>setNewName(e.target.value), style:{maxWidth:120} }),
+      h('input', { className:'admin-file-input', placeholder:'Ссылка на файл', value:newUrl, onChange:e=>setNewUrl(e.target.value) }),
+      h('button', { className:'admin-file-add-btn', onClick:addFile }, '+ Добавить')
+    ),
+    h('div', { className:'admin-file-toggle', onClick:()=>setOpen(o=>!o) },
+      h('svg', { width:10, height:10, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:2.5 },
+        open
+          ? h('polyline', { points:'18 15 12 9 6 15' })
+          : h('polyline', { points:'6 9 12 15 18 9' })
+      ),
+      open ? 'Скрыть' : (files.length > 0 ? 'Файлы (' + files.length + ')' : '+ Прикрепить файл')
+    )
+  );
+}
+
+// ===== ADMIN: ADD VIDEO MODAL =====
+function AdminAddVideoModal({ onClose, onAdded }) {
+  const [kId, setKId] = useState('');
+  const [title, setTitle] = useState('');
+  const [moduleId, setModuleId] = useState(MODULES[0].id);
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    return String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function save() {
+    if (!kId.trim() || !title.trim()) { setErr('Заполните Kinescope ID и название'); return; }
+    setSaving(true); setErr('');
+    const newLesson = {
+      kinescopeId: kId.trim(),
+      title: title.trim(),
+      moduleId,
+      duration: '—',
+      date,
+      views: 0,
+      done: false,
+      isNew: true,
+      files: []
+    };
+    try {
+      const res = await api.post('/api/admin/lessons', newLesson);
+      newLesson.id = res.id || (Date.now());
+    } catch(e) {
+      newLesson.id = Date.now();
+    }
+    LESSONS.unshift(newLesson);
+    recomputeModuleCounts();
+    persistAdminChanges();
+    onAdded();
+    onClose();
+  }
+
+  return h('div', { className:'modal-backdrop', onClick:e=>{ if(e.target===e.currentTarget) onClose(); } },
+    h('div', { className:'modal add-video-modal-inner' },
+      h('button', { className:'modal-close', onClick:onClose },
+        h('svg', {width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2},
+          h('line',{x1:18,y1:6,x2:6,y2:18}), h('line',{x1:6,y1:6,x2:18,y2:18})
+        )
+      ),
+      h('div', { className:'modal-hero', style:{textAlign:'left',padding:'1.5rem 2rem 1rem'} },
+        h('div', { style:{fontSize:16,fontWeight:900,letterSpacing:'-0.3px'} }, 'Добавить видеоурок'),
+        h('div', { style:{fontSize:12,color:'var(--text2)',marginTop:4} }, 'Введите Kinescope ID и параметры урока')
+      ),
+      h('div', { className:'add-video-form' },
+        h('div', { className:'add-video-field' },
+          h('label', { className:'add-video-label' }, 'Kinescope Video ID'),
+          h('input', { className:'add-video-input', placeholder:'например: b0115c49-a6f1-466a-a893-acff9eebae10', value:kId, onChange:e=>setKId(e.target.value) })
+        ),
+        h('div', { className:'add-video-field' },
+          h('label', { className:'add-video-label' }, 'Название урока'),
+          h('input', { className:'add-video-input', placeholder:'Введите название...', value:title, onChange:e=>setTitle(e.target.value) })
+        ),
+        h('div', { className:'add-video-field' },
+          h('label', { className:'add-video-label' }, 'Раздел'),
+          h('select', { className:'add-video-input', value:moduleId, onChange:e=>setModuleId(e.target.value) },
+            ...MODULES.map(m => h('option', { key:m.id, value:m.id }, m.title))
+          )
+        ),
+        h('div', { className:'add-video-field' },
+          h('label', { className:'add-video-label' }, 'Дата (дд.мм.гггг)'),
+          h('input', { className:'add-video-input', placeholder:'27.03.2026', value:date, onChange:e=>setDate(e.target.value) })
+        ),
+        err && h('div', { style:{color:'var(--red)',fontSize:12,fontWeight:700} }, err),
+        h('button', {
+          className:'btn-primary',
+          onClick:save,
+          disabled:saving,
+          style:{justifyContent:'center',width:'100%',padding:'0.85rem',fontSize:14}
+        }, saving ? 'Сохранение...' : '+ Добавить урок')
+      )
+    )
+  );
+}
+
 // ===== ADMIN: CONTENT MANAGEMENT =====
 function AdminContent({ onDataChange }) {
   const [tab, setTab] = useState('lessons');
@@ -4172,6 +4420,7 @@ function AdminContent({ onDataChange }) {
   const [selected, setSelected] = useState(new Set());
   const [bulkTarget, setBulkTarget] = useState('');
   const [savedToast, setSavedToast] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [, forceUpdate] = useState(0);
 
   function showSavedToast() {
@@ -4309,6 +4558,16 @@ function AdminContent({ onDataChange }) {
           ...MODULES.map(m =>
             h('option', { key: m.id, value: m.id }, m.title + ' (' + m.total + ')')
           )
+        ),
+        h('button', {
+          className: 'btn-primary',
+          onClick: () => setShowAddModal(true),
+          style: { flexShrink: 0 }
+        },
+          h('svg', { width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:2.5 },
+            h('line', { x1:12, y1:5, x2:12, y2:19 }), h('line', { x1:5, y1:12, x2:19, y2:12 })
+          ),
+          'Добавить видео'
         ),
         h('button', {
           className: 'btn-secondary',
