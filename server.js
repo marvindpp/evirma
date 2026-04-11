@@ -43,43 +43,55 @@ function verifyTgAuth(data) {
 }
 
 // ─── SESSIONS (JWT-like, без зависимостей) ─────────────────────────────────────
-const MAX_DEVICES = 2; // максимум устройств навсегда
+const MAX_DEVICES = 2; // максимум устройств
 
-function createSession(telegramId, role = 'student') {
-  const tokenId = crypto.randomBytes(16).toString('hex');
-  const payload = JSON.stringify({ telegram_id: String(telegramId), role, token_id: tokenId, exp: Date.now() + 30 * 86400_000 });
-  const b64 = Buffer.from(payload).toString('base64url');
-  const sig  = crypto.createHmac('sha256', SES_SECRET).update(b64).digest('base64url');
-  const token = `${b64}.${sig}`;
-
+function getSessions(telegramId) {
   const user = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(String(telegramId));
   let sessions = [];
   try { sessions = JSON.parse(user?.active_token || '[]'); } catch { sessions = []; }
   if (!Array.isArray(sessions)) sessions = [];
+  return sessions;
+}
 
-  // Если слотов ещё нет — добавляем (первые MAX_DEVICES устройств навсегда)
+// Декодирует токен БЕЗ проверки срока (для детектирования re-login с того же устройства)
+// Подпись всё равно проверяется — подделать нельзя
+function decodeTokenUnsafe(token) {
+  if (!token) return null;
+  const [b64, sig] = (token || '').split('.');
+  if (!b64 || !sig) return null;
+  const expected = crypto.createHmac('sha256', SES_SECRET).update(b64).digest('base64url');
+  if (sig !== expected) return null;
+  try { return JSON.parse(Buffer.from(b64, 'base64url').toString()); } catch { return null; }
+}
+
+function createSession(telegramId, role = 'student', replaceToken = null) {
+  const tokenId = crypto.randomBytes(16).toString('hex');
+  const payload = JSON.stringify({ telegram_id: String(telegramId), role, token_id: tokenId, exp: Date.now() + 90 * 86400_000 });
+  const b64 = Buffer.from(payload).toString('base64url');
+  const sig  = crypto.createHmac('sha256', SES_SECRET).update(b64).digest('base64url');
+  const token = `${b64}.${sig}`;
+
+  let sessions = getSessions(telegramId);
+
+  // Re-login с уже зарегистрированного устройства — обновляем именно этот слот
+  if (replaceToken) {
+    const idx = sessions.findIndex(s => s.token === replaceToken);
+    if (idx !== -1) {
+      sessions[idx] = { token, added: sessions[idx].added, refreshed: Date.now() };
+      db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(JSON.stringify(sessions), String(telegramId));
+      return token;
+    }
+  }
+
+  // Новое устройство — только если есть свободный слот
   if (sessions.length < MAX_DEVICES) {
     sessions.push({ token, added: Date.now() });
     db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(JSON.stringify(sessions), String(telegramId));
     return token;
   }
 
-  // Слоты заняты — обновляем токен существующего слота если это то же устройство
-  // (re-login с уже зарегистрированного устройства — просто обновляем токен)
-  // Определяем по token_id в старом токене — если декодируется валидно, это переlogин
-  // Заменяем самый старый токен новым (re-login)
-  sessions.sort((a, b) => a.added - b.added);
-  sessions[0] = { token, added: Date.now() }; // обновляем самый старый слот
-  db.prepare('UPDATE users SET active_token = ? WHERE telegram_id = ?').run(JSON.stringify(sessions), String(telegramId));
-  return token;
-}
-
-// Проверяем можно ли добавить новое устройство (не re-login)
-function canAddDevice(telegramId) {
-  const user = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(String(telegramId));
-  let sessions = [];
-  try { sessions = JSON.parse(user?.active_token || '[]'); } catch { sessions = []; }
-  return sessions.length < MAX_DEVICES;
+  // Все слоты заняты — нельзя добавить
+  return null;
 }
 
 function verifySession(token) {
@@ -163,24 +175,42 @@ app.post('/api/auth/telegram', async (req, res) => {
       .run(data.first_name || '', data.username || '', data.photo_url || '', isAdmin ? 'admin' : (existing.role || 'student'), telegramId);
   }
 
-  // Проверка лимита устройств (кроме админов)
-  if (!isAdmin) {
-    const userNow = db.prepare('SELECT active_token FROM users WHERE telegram_id = ?').get(telegramId);
-    let sessions = [];
-    try { sessions = JSON.parse(userNow?.active_token || '[]'); } catch { sessions = []; }
-    if (!Array.isArray(sessions)) sessions = [];
+  // Определяем, это re-login с уже зарегистрированного устройства или новое устройство
+  // Клиент отправляет свой текущий токен в Authorization header
+  const sentToken = req.headers.authorization?.replace('Bearer ', '') || null;
+  const decodedSent = decodeTokenUnsafe(sentToken);
+  const isReLogin = !!(
+    decodedSent &&
+    String(decodedSent.telegram_id) === String(telegramId) &&
+    getSessions(telegramId).some(s => s.token === sentToken)
+  );
 
+  // Проверка лимита устройств (кроме админов и re-login)
+  if (!isAdmin && !isReLogin) {
+    const sessions = getSessions(telegramId);
     if (sessions.length >= MAX_DEVICES) {
-      // Это точно новое устройство — все слоты заняты
       return res.status(403).json({
         error: 'device_limit',
-        message: 'Достигнут лимит устройств (2). Обратитесь к администратору для сброса устройств.'
+        message: `Достигнут лимит устройств (${MAX_DEVICES}). Для входа с нового устройства обратитесь в поддержку — администратор сбросит все входы.`,
+        devices_count: sessions.length,
+        max_devices: MAX_DEVICES
       });
     }
   }
 
   const user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramId);
-  const session = createSession(telegramId, user.role);
+  const session = createSession(telegramId, user.role, isReLogin ? sentToken : null);
+
+  // На случай race condition (одновременные запросы заполнили слоты)
+  if (!session && !isAdmin) {
+    const sessions = getSessions(telegramId);
+    return res.status(403).json({
+      error: 'device_limit',
+      message: `Достигнут лимит устройств (${MAX_DEVICES}). Для входа с нового устройства обратитесь в поддержку — администратор сбросит все входы.`,
+      devices_count: sessions.length,
+      max_devices: MAX_DEVICES
+    });
+  }
 
   // Автодобавление в базу учеников если его там нет
   const inStudents = db.prepare('SELECT id FROM students WHERE telegram_id = ?').get(telegramId);
@@ -391,6 +421,20 @@ app.post('/api/admin/reset-devices', requireAuth, requireAdmin, (req, res) => {
   res.json({ ok: true, message: 'Устройства сброшены. Пользователь может войти заново.' });
 });
 
+// ── ADMIN: инфо об устройствах пользователя ──
+app.get('/api/admin/devices/:telegram_id', requireAuth, requireAdmin, (req, res) => {
+  const sessions = getSessions(req.params.telegram_id);
+  res.json({
+    devices_count: sessions.length,
+    max_devices: MAX_DEVICES,
+    sessions: sessions.map((s, i) => ({
+      slot: i + 1,
+      added: new Date(s.added).toLocaleString('ru-RU'),
+      refreshed: s.refreshed ? new Date(s.refreshed).toLocaleString('ru-RU') : null
+    }))
+  });
+});
+
 // ── ADMIN: список администраторов ──
 app.get('/api/admin/list-admins', requireAuth, requireAdmin, (req, res) => {
   const admins = db.prepare("SELECT telegram_id, first_name, username, photo_url, created_at FROM users WHERE role = 'admin' ORDER BY created_at").all();
@@ -422,13 +466,28 @@ app.post('/api/admin/grant-admin', requireAuth, requireAdmin, (req, res) => {
 });
 
 // ── ADMIN: управление уроками ──
+
+// Добавить урок
+app.post('/api/admin/lessons', requireAuth, requireAdmin, (req, res) => {
+  const { kinescopeId, title, module_id, description, duration, date, files } = req.body;
+  if (!kinescopeId || !title || !module_id) return res.status(400).json({ error: 'missing_fields' });
+  const maxOrder = db.prepare('SELECT MAX(sort_order) as m FROM lessons').get()?.m || 0;
+  const r = db.prepare(`
+    INSERT INTO lessons (kinescope_id, title, module_id, description, duration, lesson_date, files, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(kinescopeId, title, module_id, description || '', duration || '—', date || '', JSON.stringify(files || []), maxOrder + 1);
+  res.json({ ok: true, id: r.lastInsertRowid });
+});
+
+// Обновить урок
 app.patch('/api/admin/lessons/:id', requireAuth, requireAdmin, (req, res) => {
-  const { title, module_id, description } = req.body;
+  const { title, module_id, description, files } = req.body;
   const updates = [];
   const params  = [];
   if (title !== undefined)       { updates.push('title = ?');       params.push(title); }
   if (module_id !== undefined)   { updates.push('module_id = ?');   params.push(module_id); }
   if (description !== undefined) { updates.push('description = ?'); params.push(description); }
+  if (files !== undefined)       { updates.push('files = ?');       params.push(JSON.stringify(files)); }
   if (!updates.length) return res.status(400).json({ error: 'nothing_to_update' });
   params.push(req.params.id);
   db.prepare(`UPDATE lessons SET ${updates.join(', ')} WHERE id = ?`).run(...params);
@@ -472,6 +531,17 @@ app.listen(PORT, () => {
   console.log(`   Health:  http://localhost:${PORT}/api/health`);
   console.log(`   Режим:   ${DEV_MODE ? 'DEV (Telegram auth не проверяется)' : 'PRODUCTION'}`);
   console.log(`   Dev-вход: POST /api/auth/telegram { "id": "ваш_telegram_id" }\n`);
+
+  // Миграции — добавляем новые колонки если их нет
+  try {
+    const cols = db.prepare("PRAGMA table_info(lessons)").all().map(c => c.name);
+    if (!cols.includes('files'))        db.prepare("ALTER TABLE lessons ADD COLUMN files TEXT DEFAULT '[]'").run();
+    if (!cols.includes('lesson_date'))  db.prepare("ALTER TABLE lessons ADD COLUMN lesson_date TEXT DEFAULT ''").run();
+    if (!cols.includes('kinescope_id')) db.prepare("ALTER TABLE lessons ADD COLUMN kinescope_id TEXT DEFAULT ''").run();
+    console.log('✅ Миграции БД применены');
+  } catch(e) {
+    console.log('⚠️  Ошибка миграции:', e.message);
+  }
 
   // Авто-импорт при первом запуске если база пустая
   try {
