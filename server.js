@@ -413,6 +413,14 @@ app.delete('/api/me/employees/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── ADMIN: сброс анкеты (для тестирования онбординга) ──
+app.post('/api/admin/reset-profile', requireAuth, requireAdmin, (req, res) => {
+  const { telegram_id } = req.body;
+  if (!telegram_id) return res.status(400).json({ error: 'telegram_id_required' });
+  db.prepare(`UPDATE students SET city=NULL, niche=NULL, revenue=NULL, goal=NULL, strengths=NULL, can_share=0 WHERE telegram_id=?`).run(String(telegram_id));
+  res.json({ ok: true, message: 'Анкета сброшена. При следующем входе покажется онбординг.' });
+});
+
 // ── ADMIN: сброс устройств пользователя ──
 app.post('/api/admin/reset-devices', requireAuth, requireAdmin, (req, res) => {
   const { telegram_id } = req.body;
