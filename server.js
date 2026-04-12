@@ -320,6 +320,14 @@ app.get('/api/me/progress', requireAuth, (req, res) => {
   res.json({ watched, total, percent: total ? Math.round((watched / total) * 100) : 0, by_module: byModule });
 });
 
+// ── СЧЁТЧИКИ ДЛЯ САЙДБАРА ──
+app.get('/api/counts', requireAuth, (req, res) => {
+  const students    = db.prepare("SELECT COUNT(*) as cnt FROM users").get().cnt;
+  const contractors = db.prepare("SELECT COUNT(*) as cnt FROM contractors").get().cnt;
+  const lessons     = db.prepare("SELECT COUNT(*) as cnt FROM lessons").get().cnt;
+  res.json({ students, contractors, lessons });
+});
+
 // ── УЧЕНИКИ ──
 app.get('/api/students', requireAuth, (req, res) => {
   const { city, niche, revenue, search, page = 1, limit = 24 } = req.query;
