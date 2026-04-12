@@ -322,6 +322,7 @@ app.get('/api/me/progress', requireAuth, (req, res) => {
 
 // ── СЧЁТЧИКИ ДЛЯ САЙДБАРА ──
 app.get('/api/counts', requireAuth, (req, res) => {
+  // Участники = только те кто реально зарегался на сайте (есть в users)
   const students    = db.prepare("SELECT COUNT(*) as cnt FROM users").get().cnt;
   const contractors = db.prepare("SELECT COUNT(*) as cnt FROM contractors").get().cnt;
   const lessons     = db.prepare("SELECT COUNT(*) as cnt FROM lessons").get().cnt;
@@ -329,32 +330,48 @@ app.get('/api/counts', requireAuth, (req, res) => {
 });
 
 // ── УЧЕНИКИ ──
+// Показываем ТОЛЬКО тех, кто реально зарегался на сайте (INNER JOIN с users)
+// can_share управляет видимостью контактов в попапе, а не самой карточкой
 app.get('/api/students', requireAuth, (req, res) => {
   const { city, niche, revenue, search, page = 1, limit = 24 } = req.query;
-  let sql = 'SELECT s.*, u.photo_url FROM students s LEFT JOIN users u ON u.telegram_id = s.telegram_id WHERE s.can_share = 1';
+
+  let where = 'WHERE 1=1';
   const params = [];
 
-  if (city)    { sql += ' AND s.city = ?';              params.push(city); }
-  if (niche)   { sql += ' AND s.niche LIKE ?';          params.push(`%${niche}%`); }
-  if (revenue) { sql += ' AND s.revenue LIKE ?';        params.push(`%${revenue}%`); }
+  if (city)    { where += ' AND s.city = ?';              params.push(city); }
+  if (niche)   { where += ' AND s.niche LIKE ?';          params.push(`%${niche}%`); }
+  if (revenue) { where += ' AND s.revenue LIKE ?';        params.push(`%${revenue}%`); }
   if (search)  {
-    sql += ' AND (s.full_name LIKE ? OR s.telegram_user LIKE ? OR s.niche LIKE ? OR s.goal LIKE ?)';
+    where += ' AND (s.full_name LIKE ? OR s.telegram_user LIKE ? OR s.niche LIKE ? OR s.goal LIKE ?)';
     params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  const countSql = 'SELECT COUNT(*) as cnt FROM students s WHERE s.can_share = 1' + sql.split('WHERE s.can_share = 1')[1].split(' LIMIT')[0];
-  const total = db.prepare(countSql).get(...params).cnt;
-  sql += ` LIMIT ? OFFSET ?`;
-  params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+  const base = `FROM students s INNER JOIN users u ON u.telegram_id = s.telegram_id ${where}`;
+  const total = db.prepare(`SELECT COUNT(*) as cnt ${base}`).get(...params).cnt;
 
-  const students = db.prepare(sql).all(...params);
-  res.json({ students, total, page: parseInt(page), pages: Math.ceil(total / limit) });
+  const limitN  = parseInt(limit);
+  const offset  = (parseInt(page) - 1) * limitN;
+  const students = db.prepare(
+    `SELECT s.*, u.photo_url ${base} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`
+  ).all(...params, limitN, offset);
+
+  res.json({ students, total, page: parseInt(page), pages: Math.ceil(total / limitN) });
 });
 
-// Фильтры (уникальные города, ниши)
+// Фильтры (уникальные города, ниши) — только реально зарегавшиеся
 app.get('/api/students/filters', requireAuth, (req, res) => {
-  const cities  = db.prepare("SELECT city, COUNT(*) as cnt FROM students WHERE can_share=1 AND city IS NOT NULL AND city != '' GROUP BY city ORDER BY cnt DESC").all();
-  const niches  = db.prepare("SELECT niche, COUNT(*) as cnt FROM students WHERE can_share=1 AND niche IS NOT NULL AND niche != '' GROUP BY niche ORDER BY cnt DESC").all();
+  const cities = db.prepare(`
+    SELECT s.city, COUNT(*) as cnt FROM students s
+    INNER JOIN users u ON u.telegram_id = s.telegram_id
+    WHERE s.city IS NOT NULL AND s.city != ''
+    GROUP BY s.city ORDER BY cnt DESC
+  `).all();
+  const niches = db.prepare(`
+    SELECT s.niche, COUNT(*) as cnt FROM students s
+    INNER JOIN users u ON u.telegram_id = s.telegram_id
+    WHERE s.niche IS NOT NULL AND s.niche != ''
+    GROUP BY s.niche ORDER BY cnt DESC
+  `).all();
   res.json({ cities, niches });
 });
 
