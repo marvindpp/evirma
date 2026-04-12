@@ -2801,12 +2801,12 @@ function AuthPage({ onLogin }) {
 }
 
 // ===== SIDEBAR =====
-function Sidebar({ page, onNavigate, onLogout, open, onClose, role, user }) {
+function Sidebar({ page, onNavigate, onLogout, open, onClose, role, user, counts }) {
   const navItems = [
     { id: 'dashboard', icon: 'home', label: 'Главная' },
-    { id: 'knowledge', icon: 'book', label: 'База знаний', badge: String(LESSONS.length) },
-    { id: 'students', icon: 'users', label: 'Участники', badge: '633' },
-    { id: 'contractors', icon: 'briefcase', label: 'Подрядчики', badge: String(CONTRACTORS.length) },
+    { id: 'knowledge', icon: 'book', label: 'База знаний', badge: counts?.lessons != null ? String(counts.lessons) : String(LESSONS.length) },
+    { id: 'students', icon: 'users', label: 'Участники', badge: counts?.students != null ? String(counts.students) : '...' },
+    { id: 'contractors', icon: 'briefcase', label: 'Подрядчики', badge: counts?.contractors != null ? String(counts.contractors) : String(CONTRACTORS.length) },
     { id: 'profile', icon: 'user', label: 'Мой профиль' },
   ];
   const adminItems = [
@@ -3060,7 +3060,9 @@ function KnowledgeBase({ onLessonClick }) {
                 h('div', { className: 'lesson-meta' },
                   h('span', null, mod?.title),
                   h('span', { className: 'lesson-meta-dot' }, '•'),
-                  h('span', null, lesson.duration)
+                  h('span', null, lesson.duration),
+                  lesson.files && lesson.files.length > 0 && h('span', { className: 'lesson-meta-dot' }, '•'),
+                  lesson.files && lesson.files.length > 0 && h('span', { style:{color:'var(--accent)'} }, '📎 ' + lesson.files.length + ' файл' + (lesson.files.length === 1 ? '' : lesson.files.length < 5 ? 'а' : 'ов'))
                 )
               ),
               lesson.done
@@ -3119,9 +3121,26 @@ function LessonPlayer({ lesson, onBack, onComplete, onNext, onPrev }) {
       h('div', { style:{fontSize:14,color:'var(--text2)',lineHeight:1.7,whiteSpace:'pre-wrap'} }, lesson.description)
     ),
 
-    lesson.description && h('div', { className: 'player-section' },
-      h('div', { className: 'player-section-title' }, 'Описание'),
-      h('div', { style:{fontSize:14,color:'var(--text2)',lineHeight:1.7,whiteSpace:'pre-wrap'} }, lesson.description)
+    lesson.files && lesson.files.length > 0 && h('div', { className: 'player-section' },
+      h('div', { className: 'player-section-title' }, '📎 Материалы к уроку'),
+      h('div', { style:{display:'flex',flexDirection:'column',gap:8,marginTop:4} },
+        ...lesson.files.map((f, i) =>
+          h('a', {
+            key: i,
+            href: f.url,
+            target: '_blank',
+            rel: 'noopener',
+            style:{display:'inline-flex',alignItems:'center',gap:8,padding:'10px 14px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,color:'var(--accent)',fontSize:14,fontWeight:600,textDecoration:'none',transition:'all 0.15s'}
+          },
+            h('svg', { width:16, height:16, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:2 },
+              h('path', { d:'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+              h('polyline', { points:'7 10 12 15 17 10' }),
+              h('line', { x1:12, y1:15, x2:12, y2:3 })
+            ),
+            f.name
+          )
+        )
+      )
     ),
 
     h('div', { className: 'lesson-nav' },
@@ -3200,7 +3219,17 @@ function StudentModal({ student, onClose }) {
             }, h(Icon.telegram), 'Написать в Telegram')
           : h('button', { className: 'modal-tg-btn disabled', disabled: true },
               h(Icon.telegram), 'Контакт скрыт'
-            )
+            ),
+        (student.phone || student.email) && h('div', { style:{display:'flex',flexDirection:'column',gap:6,marginTop:10} },
+          student.phone && h('a', { href:'tel:'+student.phone, style:{display:'flex',alignItems:'center',gap:8,padding:'9px 12px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,color:'var(--text)',fontSize:13,fontWeight:600,textDecoration:'none'} },
+            h('svg', { width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:2 }, h('path', { d:'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.64 5a2 2 0 0 1 1.95-2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 17.27' })),
+            student.phone
+          ),
+          student.email && h('a', { href:'mailto:'+student.email, style:{display:'flex',alignItems:'center',gap:8,padding:'9px 12px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,color:'var(--text)',fontSize:13,fontWeight:600,textDecoration:'none'} },
+            h('svg', { width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:2 }, h('rect', { x:2, y:4, width:20, height:16, rx:2 }), h('path', { d:'m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7' })),
+            student.email
+          )
+        )
       )
     )
   );
@@ -4589,6 +4618,11 @@ function App() {
   const [sidebarOpen,   setSidebarOpen]   = useState(false);
   const [dataVersion,   setDataVersion]   = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [navCounts,     setNavCounts]     = useState(null);
+
+  function fetchCounts() {
+    api.get('/api/counts').then(r => setNavCounts(r)).catch(() => {});
+  }
 
   // Проверяем существующую сессию при загрузке страницы
   useEffect(() => {
@@ -4596,7 +4630,7 @@ function App() {
     if (!token) { setAppLoading(false); return; }
     api.get('/api/me')
       .then(res => {
-        return loadApiData().then(() => { setUser(res.user); });
+        return loadApiData().then(() => { setUser(res.user); fetchCounts(); });
       })
       .catch(() => { clearToken(); })
       .finally(() => setAppLoading(false));
@@ -4608,6 +4642,7 @@ function App() {
     onLogin: (userData) => {
       loadApiData().catch(()=>{});
       setUser(userData);
+      fetchCounts();
       // Показываем анкету если пользователь новый (нет города)
       api.get('/api/me/profile-data').then(r => {
         if (!r.data || !r.data.city) setShowOnboarding(true);
@@ -4682,6 +4717,7 @@ function App() {
       page,
       role,
       user,
+      counts: navCounts,
       onNavigate: (p) => { setPage(p); setCurrentLesson(null); },
       onLogout: handleLogout,
       open: sidebarOpen,
