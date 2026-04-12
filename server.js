@@ -363,7 +363,7 @@ app.get('/api/contractors', requireAuth, (req, res) => {
 });
 
 app.get('/api/me/profile-data', requireAuth, (req, res) => {
-  const s = db.prepare('SELECT city, niche, revenue, goal, strengths, email, phone FROM students WHERE telegram_id = ?').get(req.user.telegram_id);
+  const s = db.prepare('SELECT city, niche, revenue, goal, strengths, email, phone, can_share, full_name FROM students WHERE telegram_id = ?').get(req.user.telegram_id);
   res.json({ data: s || null });
 });
 
