@@ -3268,15 +3268,18 @@ function StudentsBase() {
     api.get('/api/students?' + params.toString())
       .then(res => {
         // Нормализуем поля: API отдаёт full_name/niche/telegram_user, компонент ждёт name/nisha/handle
+        // can_share=0 → контакты скрыты (handle=null, phone/email=null)
         const normalized = res.students.map(s => ({
           ...s,
-          name:    s.full_name || s.first_name || 'Участник',
-          initials: ((s.full_name || s.first_name || 'U').split(' ').map(w => w[0]).join('').slice(0,2)).toUpperCase(),
-          handle:  s.telegram_user ? '@' + s.telegram_user : null,
-          nisha:   s.niche || '—',
-          city:    s.city  || '—',
-          revenue: s.revenue || '—',
-          goal:    s.goal  || '',
+          name:      s.full_name || s.first_name || 'Участник',
+          initials:  ((s.full_name || s.first_name || 'U').split(' ').map(w => w[0]).join('').slice(0,2)).toUpperCase(),
+          handle:    s.can_share ? (s.telegram_user ? '@' + s.telegram_user : null) : null,
+          phone:     s.can_share ? (s.phone || null) : null,
+          email:     s.can_share ? (s.email || null) : null,
+          nisha:     s.niche || '—',
+          city:      s.city  || '—',
+          revenue:   s.revenue || '—',
+          goal:      s.goal  || '',
           strengths: s.strengths || '',
         }));
         setStudents(normalized);
