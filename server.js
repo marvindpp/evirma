@@ -129,11 +129,13 @@ function requireAdmin(req, res, next) {
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 async function checkSubscription(telegramId) {
   try {
-    const r   = await fetch(`${SUB_URL}?telegram_id=${telegramId}`);
+    const r   = await fetch(`${SUB_URL}?telegram_id=${telegramId}`, { signal: AbortSignal.timeout(5000) });
     const sub = await r.json();
     return { active: !!sub.result, message: sub.message_result || null };
   } catch {
-    return { active: false, message: null };
+    // Если вебхук недоступен — пропускаем, не блокируем пользователя
+    console.warn('⚠️  checkSubscription failed for', telegramId, '— пропускаем');
+    return { active: true, message: null };
   }
 }
 
@@ -152,9 +154,9 @@ app.post('/api/auth/telegram', async (req, res) => {
 
   const telegramId = String(data.id || data.telegram_id || 'dev-user');
 
-  // Проверяем подписку (в dev-режиме пропускаем)
+  // Проверяем подписку (в dev-режиме и для администраторов пропускаем)
   let sub = { active: true, message: 'Dev режим' };
-  if (!DEV_MODE) {
+  if (!DEV_MODE && !ADMIN_IDS.has(String(telegramId))) {
     sub = await checkSubscription(telegramId);
     if (!sub.active) {
       return res.status(403).json({
