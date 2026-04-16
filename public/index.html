@@ -1059,6 +1059,50 @@
   }
   .contractor-promo-btn:hover { background: var(--accent-hover); }
 
+  /* contractor redesign */
+  .contractor-card {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .contractor-card:hover { border-color: var(--accent-border); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+  .contractor-name { font-size: 17px; }
+  .contractor-desc { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .contractor-rating { font-size: 14px; }
+  .contractor-stars-row { display: flex; gap: 3px; align-items: center; margin: 4px 0 0; }
+  .contractor-star-btn { background: none; border: none; padding: 2px; cursor: pointer; color: var(--border2); transition: color 0.1s; font-size: 18px; line-height: 1; }
+  .contractor-star-btn.filled { color: var(--yellow); }
+  .contractor-star-btn:hover { color: var(--yellow); }
+
+  /* contractor modal */
+  .contractor-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200;
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
+    animation: fadeIn 0.15s ease;
+  }
+  .contractor-modal {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: 20px; padding: 2rem; max-width: 520px; width: 100%;
+    max-height: 90vh; overflow-y: auto;
+    animation: slideUp 0.2s ease;
+  }
+  .contractor-modal-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; gap: 12px; }
+  .contractor-modal-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); }
+  .contractor-modal-close { background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; color: var(--text2); cursor: pointer; font-size: 16px; flex-shrink: 0; }
+  .contractor-modal-close:hover { background: var(--bg-hover); color: var(--text); }
+  .contractor-modal-section { margin-bottom: 1.25rem; }
+  .contractor-modal-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 6px; }
+  .contractor-modal-text { font-size: 15px; color: var(--text2); line-height: 1.65; white-space: pre-wrap; }
+  .contractor-modal-rating-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .contractor-modal-avg { font-size: 28px; font-weight: 900; color: var(--yellow); letter-spacing: -1px; }
+  .contractor-modal-cnt { font-size: 13px; color: var(--text-dim); }
+  .contractor-modal-my-label { font-size: 13px; color: var(--text2); margin-top: 10px; margin-bottom: 6px; }
+  .contractor-modal-stars { display: flex; gap: 4px; }
+  .contractor-modal-star { background: none; border: none; cursor: pointer; font-size: 28px; color: var(--border2); transition: color 0.1s; padding: 2px; }
+  .contractor-modal-star.filled { color: var(--yellow); }
+  .contractor-modal-star:hover { color: var(--yellow); }
+
   /* ===== PROFILE PAGE ===== */
   .profile-wrap { max-width: 980px; margin: 0 auto; }
   .profile-header {
@@ -1162,7 +1206,7 @@
     padding: 1.5rem;
   }
   .profile-card-title {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 800;
     color: var(--text3);
     text-transform: uppercase;
@@ -1171,8 +1215,8 @@
   }
   .profile-fields { display: flex; flex-direction: column; gap: 1rem; }
   .profile-field { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-  .profile-field-label { font-size: 12px; color: var(--text2); font-weight: 600; flex-shrink: 0; }
-  .profile-field-value { font-size: 13px; color: var(--text); font-weight: 700; text-align: right; }
+  .profile-field-label { font-size: 13px; color: var(--text2); font-weight: 600; flex-shrink: 0; }
+  .profile-field-value { font-size: 15px; color: var(--text); font-weight: 700; text-align: right; }
 
   .subscription-card {
     background: linear-gradient(135deg, var(--accent-dim), rgba(255,107,44,0.04));
@@ -2429,34 +2473,39 @@ function saveStorage(data) {
 const _stored = loadStorage();
 
 const DEFAULT_MODULES = [
-  { id: 'efiry-max', title: "Эфиры с Максом", icon: 'mic', total: 61, done: 0 },
-  { id: 'efiry-spikery', title: "Эфиры со спикерами", icon: 'users', total: 4, done: 0 },
-  { id: 'razbory-topov', title: "Разборы топов", icon: 'trending', total: 5, done: 0 },
-  { id: 'razbory-uch', title: "Разборы участников", icon: 'target', total: 21, done: 0 },
-  { id: 'razbory-rk', title: "Разборы рекламных кампаний", icon: 'zap', total: 9, done: 0 },
-  { id: 'tablicy', title: "Таблицы", icon: 'table', total: 4, done: 0 },
-  { id: 'mini-kursy', title: "Мини-курсы", icon: 'book', total: 18, done: 0 },
+  { id: 'efiry-max',       title: "Эфиры с Максом",                                      icon: 'mic',      total: 45, done: 0 },
+  { id: 'efiry-spikery',   title: "Эфиры со спикерами",                                   icon: 'users',    total: 4,  done: 0 },
+  { id: 'razbory-topov',   title: "Разборы топов",                                         icon: 'trending', total: 5,  done: 0 },
+  { id: 'razbory-uch',     title: "Разборы участников",                                    icon: 'target',   total: 21, done: 0 },
+  { id: 'razbory-rk',      title: "Разборы рекламных кампаний",                            icon: 'zap',      total: 9,  done: 0 },
+  { id: 'tablicy',         title: "Таблицы",                                               icon: 'table',    total: 4,  done: 0 },
+  { id: 'kurs-obelenie',   title: "Обеление с нуля",                                       icon: 'shield',   total: 5,  done: 0 },
+  { id: 'kurs-trendy',     title: "Анализ трендов: как найти Лабубу?",                     icon: 'trending', total: 5,  done: 0 },
+  { id: 'kurs-foto',       title: "Фотоворонка от первого взгляда до покупки",              icon: 'camera',   total: 5,  done: 0 },
+  { id: 'kurs-neuro',      title: "Новогодний нейроконтент",                                icon: 'star',     total: 3,  done: 0 },
+  { id: 'kurs-godplan',    title: "Сценарий годового планирования товарного бизнеса",        icon: 'calendar', total: 6,  done: 0 },
+  { id: 'kurs-strategiya', title: "Стратегия продвижения карточки товара",                  icon: 'zap',      total: 6,  done: 0 },
 ];
 
 const DEFAULT_LESSONS = [
   { id: 1, kinescopeId: 'b0115c49-a6f1-466a-a893-acff9eebae10', moduleId: 'razbory-rk', title: "Настройка рекламы с плагином", duration: '1:10:45', views: 25, done: false, isNew: false, date: '31.03.2026' },
   { id: 2, kinescopeId: 'ee6234ab-8585-4c6d-9a46-d61fcde7d317', moduleId: 'efiry-spikery', title: "Новая логистика. Лидия", duration: '1:10:59', views: 32, done: false, isNew: false, date: '31.03.2026' },
   { id: 3, kinescopeId: '9ee40947-8938-4840-956c-3ea8dca4102d', moduleId: 'efiry-max', title: "Эфир от 27.03.2026", duration: '1:10:59', views: 39, done: false, isNew: false, date: '27.03.2026' },
-  { id: 4, kinescopeId: '7621ac59-81cb-4cb4-9403-3aa8b29b84b7', moduleId: 'efiry-max', title: "24.03", duration: '2:19:55', views: 46, done: false, isNew: false, date: '24.03.2026' },
+  { id: 4, kinescopeId: '7621ac59-81cb-4cb4-9403-3aa8b29b84b7', moduleId: 'efiry-max', title: "Эфир от 24.03.2026", duration: '2:19:55', views: 46, done: false, isNew: false, date: '24.03.2026' },
   { id: 5, kinescopeId: '14feb645-853e-4748-ab8d-470d45dfef22', moduleId: 'efiry-max', title: "Вешалка настенная", duration: '1:27:08', views: 53, done: false, isNew: false, date: '19.03.2026' },
-  { id: 6, kinescopeId: 'e4c33317-abd7-4501-a8e1-756c2256c712', moduleId: 'efiry-max', title: "Эфир16.03", duration: '1:41:19', views: 60, done: false, isNew: false, date: '17.03.2026' },
+  { id: 6, kinescopeId: 'e4c33317-abd7-4501-a8e1-756c2256c712', moduleId: 'efiry-max', title: "Эфир от 16.03.2026", duration: '1:41:19', views: 60, done: false, isNew: false, date: '17.03.2026' },
   { id: 7, kinescopeId: '0ace2574-3b45-4a83-801c-25e3694e788f', moduleId: 'razbory-uch', title: "Разбор участника беспроводные наушники", duration: '1:48:04', views: 67, done: false, isNew: false, date: '13.03.2026' },
   { id: 8, kinescopeId: '06220a37-1d97-4669-ab2c-2d310f2e2f06', moduleId: 'efiry-max', title: "Как понять причину падения заказов", duration: '1:25:51', views: 74, done: false, isNew: false, date: '11.03.2026' },
   { id: 9, kinescopeId: '36d56e3a-6df8-4903-aed9-c3ad990aaa59', moduleId: 'razbory-rk', title: "Разборы рекламных кампаний с Ольгой Максимовой", duration: '2:00:58', views: 81, done: false, isNew: false, date: '04.03.2026' },
-  { id: 10, kinescopeId: 'ad7a405a-46e5-4337-a7ba-662d0e8f301b', moduleId: 'efiry-max', title: "Офлайн форум по продвижнию Max Evirma", duration: '1:17', views: 88, done: false, isNew: false, date: '27.02.2026' },
+  { id: 10, kinescopeId: 'ad7a405a-46e5-4337-a7ba-662d0e8f301b', moduleId: 'efiry-max', title: "Офлайн форум по продвижению Max Evirma", duration: '1:17', views: 88, done: false, isNew: false, date: '27.02.2026' },
   { id: 11, kinescopeId: '3da1f29d-92b7-4981-a134-e400146223db', moduleId: 'razbory-uch', title: "Разбор термокружка", duration: '1:22:08', views: 95, done: false, isNew: false, date: '27.02.2026' },
   { id: 12, kinescopeId: '061dae06-fbde-4aa8-ad6b-bbd7efffc540', moduleId: 'efiry-spikery', title: "Налоговые изменения 2026", duration: '53:22', views: 102, done: false, isNew: false, date: '24.02.2026' },
-  { id: 13, kinescopeId: 'ccb5689f-e3de-4e88-9161-4519de3be0f2', moduleId: 'razbory-uch', title: "19.02 разбор", duration: '1:25:35', views: 109, done: false, isNew: false, date: '19.02.2026' },
+  { id: 13, kinescopeId: 'ccb5689f-e3de-4e88-9161-4519de3be0f2', moduleId: 'razbory-uch', title: "Разбор от 19.02.2026", duration: '1:25:35', views: 109, done: false, isNew: false, date: '19.02.2026' },
   { id: 14, kinescopeId: '059ade43-d525-44d4-bd1e-afa884efdcde', moduleId: 'razbory-rk', title: "Разбор РК №8", duration: '2:10:01', views: 116, done: false, isNew: false, date: '18.02.2026' },
   { id: 15, kinescopeId: '6c8ceaa4-617c-4b5c-ad49-429a2d33dce5', moduleId: 'efiry-max', title: "Контентная воронка с помощью ИИ", duration: '55:02', views: 123, done: false, isNew: false, date: '16.02.2026' },
   { id: 16, kinescopeId: '93e664c2-bd19-4e4c-990e-766967018a9e', moduleId: 'razbory-uch', title: "Разбор карточки участника закрытого канала — чехол для гладильной доски", duration: '1:39:22', views: 130, done: false, isNew: false, date: '16.02.2026' },
-  { id: 17, kinescopeId: '3cdff16f-148d-414c-80c9-5f38ed8c7b75', moduleId: 'mini-kursy', title: "Видеоурок 2. Настройка и оптимизация РК", duration: '1:16:07', views: 137, done: false, isNew: false, date: '10.02.2026' },
-  { id: 18, kinescopeId: '8ace80dd-54ee-4f42-8a21-bfcbdf5f7f50', moduleId: 'mini-kursy', title: "Видеоурок 1. Обзор функций плагина Evirma", duration: '44:37', views: 144, done: false, isNew: false, date: '10.02.2026' },
+  { id: 17, kinescopeId: '3cdff16f-148d-414c-80c9-5f38ed8c7b75', moduleId: 'kurs-strategiya', title: "Урок 6. Настройка и оптимизация РК", duration: '1:16:07', views: 137, done: false, isNew: false, date: '10.02.2026' },
+  { id: 18, kinescopeId: '8ace80dd-54ee-4f42-8a21-bfcbdf5f7f50', moduleId: 'kurs-strategiya', title: "Урок 5. Обзор плагина Evirma", duration: '44:37', views: 144, done: false, isNew: false, date: '10.02.2026' },
   { id: 19, kinescopeId: 'b080ecf5-a2b9-403b-8148-3c0d0bc7f5c3', moduleId: 'efiry-max', title: "Эфир от 09.02.2026", duration: '2:02:17', views: 151, done: false, isNew: false, date: '09.02.2026' },
   { id: 20, kinescopeId: '9bddab84-fc42-4384-9c52-9bfca9e2811d', moduleId: 'efiry-max', title: "Эфир от 06.02.2026", duration: '2:12:41', views: 158, done: false, isNew: false, date: '06.02.2026' },
   { id: 21, kinescopeId: '5349bcbb-579d-4e41-9a7e-2fb4c29cbc2a', moduleId: 'efiry-spikery', title: "Отсрочка платежа за товар из Китая на 90–120 дней под гарантию SINOSURE", duration: '1:10:49', views: 165, done: false, isNew: false, date: '04.02.2026' },
@@ -2464,60 +2513,60 @@ const DEFAULT_LESSONS = [
   { id: 23, kinescopeId: 'c42b1df4-9724-4889-bdef-67a4c6fbf92f', moduleId: 'efiry-spikery', title: "Ольга и Дмитрий разборы", duration: '1:59:50', views: 179, done: false, isNew: false, date: '27.01.2026' },
   { id: 24, kinescopeId: 'bf3373d5-5258-4d42-a5a7-0a2bb95aea79', moduleId: 'razbory-uch', title: "Разбор. Брюки", duration: '1:45:38', views: 186, done: false, isNew: false, date: '22.01.2026' },
   { id: 25, kinescopeId: '96aa6b10-f299-46ea-bf41-d20682c53f6f', moduleId: 'razbory-uch', title: "Разбор карточки участника закрытого канала — БАДы (магний хелат)", duration: '1:13:40', views: 193, done: false, isNew: false, date: '15.01.2026' },
-  { id: 26, kinescopeId: 'e46497a5-fbaa-4fcb-9e1e-2edaf7df729e', moduleId: 'tablicy', title: "Заполение_таблица_анализ_рекламы_по_точкам_входа", duration: '9:29', views: 200, done: false, isNew: false, date: '12.01.2026' },
+  { id: 26, kinescopeId: 'e46497a5-fbaa-4fcb-9e1e-2edaf7df729e', moduleId: 'tablicy', title: "Таблица: анализ рекламы по точкам входа", duration: '9:29', views: 200, done: false, isNew: false, date: '12.01.2026' },
   { id: 27, kinescopeId: '3305fac4-0210-4672-a256-c3437778dfee', moduleId: 'tablicy', title: "Таблица - мониторинг конкурентов. Дима", duration: '25:07', views: 7, done: false, isNew: false, date: '09.01.2026' },
   { id: 28, kinescopeId: '6445a839-0c44-4a9e-842a-6173c90b7ae6', moduleId: 'razbory-uch', title: "Разбор подписчика - колготки", duration: '1:26:00', views: 14, done: false, isNew: false, date: '08.01.2026' },
   { id: 29, kinescopeId: '1f27400f-4467-470b-a210-c668396af8bf', moduleId: 'razbory-rk', title: "Разбор РК №5", duration: '2:13:46', views: 21, done: false, isNew: false, date: '06.01.2026' },
-  { id: 30, kinescopeId: '8c8adbe7-c65f-4d6a-968e-5e593b42f3b5', moduleId: 'mini-kursy', title: "Как правильно запускать новинку. Часть 2 (версия 2)", duration: '1:03:24', views: 28, done: false, isNew: false, date: '06.01.2026' },
+  { id: 30, kinescopeId: '8c8adbe7-c65f-4d6a-968e-5e593b42f3b5', moduleId: 'kurs-strategiya', title: "Как правильно запускать новинку. Часть 2", duration: '1:03:24', views: 28, done: false, isNew: false, date: '06.01.2026' },
   { id: 31, kinescopeId: '735a4d85-67fc-4b08-a4a7-18c12c2deb2c', moduleId: 'efiry-max', title: "Запуск РК", duration: '13:16', views: 35, done: false, isNew: false, date: '27.12.2025' },
   { id: 32, kinescopeId: '46298cae-d989-4373-a7c0-39aa0297badf', moduleId: 'efiry-max', title: "Разница РК перезапись", duration: '9:02', views: 42, done: false, isNew: false, date: '27.12.2025' },
   { id: 33, kinescopeId: '609f094d-3981-486b-bcbd-157b2ef69355', moduleId: 'razbory-uch', title: "Разбор карточки участника закрытого канала — дозатор мыла", duration: '30:15', views: 49, done: false, isNew: false, date: '25.12.2025' },
-  { id: 34, kinescopeId: '9632bf4e-7de0-4dbb-b4af-e0ea9962b8f2', moduleId: 'efiry-max', title: "Стратегия продвижения карточки товара на WB. оптимизация рк", duration: '24:17', views: 56, done: false, isNew: false, date: '23.12.2025' },
+  { id: 34, kinescopeId: '9632bf4e-7de0-4dbb-b4af-e0ea9962b8f2', moduleId: 'kurs-strategiya', title: "Урок 3. Оптимизация РК", duration: '24:17', views: 56, done: false, isNew: false, date: '23.12.2025' },
   { id: 35, kinescopeId: '27251dfe-0694-4b04-91cb-1061eafeffee', moduleId: 'razbory-rk', title: "Разбор РК №4", duration: '1:27:33', views: 63, done: false, isNew: false, date: '23.12.2025' },
-  { id: 36, kinescopeId: '1d652df0-1a29-4ee3-97e9-feab7df4d5dc', moduleId: 'efiry-max', title: "Стратегия продвижения карточки товара на WB. релевантность", duration: '21:14', views: 70, done: false, isNew: false, date: '23.12.2025' },
-  { id: 37, kinescopeId: '86c55ebe-86d4-4ddd-9b9e-a6691b0f050e', moduleId: 'efiry-max', title: "Стратегия продвижения карточки товара на WB. сбор ключевых фраз", duration: '16:16', views: 77, done: false, isNew: false, date: '23.12.2025' },
-  { id: 38, kinescopeId: '66d589d6-8a1b-4b47-b4f6-6f02350f9062', moduleId: 'efiry-max', title: "Стратегия продвижения карточки товара на WB. факторы ранжирования", duration: '8:35', views: 84, done: false, isNew: false, date: '23.12.2025' },
+  { id: 36, kinescopeId: '1d652df0-1a29-4ee3-97e9-feab7df4d5dc', moduleId: 'kurs-strategiya', title: "Урок 2. Релевантность", duration: '21:14', views: 70, done: false, isNew: false, date: '23.12.2025' },
+  { id: 37, kinescopeId: '86c55ebe-86d4-4ddd-9b9e-a6691b0f050e', moduleId: 'kurs-strategiya', title: "Урок 1. Сбор ключевых фраз", duration: '16:16', views: 77, done: false, isNew: false, date: '23.12.2025' },
+  { id: 38, kinescopeId: '66d589d6-8a1b-4b47-b4f6-6f02350f9062', moduleId: 'kurs-strategiya', title: "Урок 4. Факторы ранжирования", duration: '8:35', views: 84, done: false, isNew: false, date: '23.12.2025' },
   { id: 39, kinescopeId: '09c34b72-8de3-43fe-aed1-2098549906c8', moduleId: 'razbory-rk', title: "Работа в новом рекламном кабинете WB /Обзор нового функционала плагина Evirma", duration: '1:49:24', views: 91, done: false, isNew: false, date: '16.12.2025' },
-  { id: 40, kinescopeId: 'a14e2a35-4c16-443f-a3ce-f3219024a7bc', moduleId: 'mini-kursy', title: "Годовое планирование. Урок 6", duration: '9:12', views: 98, done: false, isNew: false, date: '15.12.2025' },
-  { id: 41, kinescopeId: '52725fac-8b44-4c2f-81b5-9902f16775b8', moduleId: 'mini-kursy', title: "Годовое планирование. Урок 5", duration: '4:33', views: 105, done: false, isNew: false, date: '15.12.2025' },
-  { id: 42, kinescopeId: '2d4afc2f-5022-417c-a29d-a02b75855a11', moduleId: 'mini-kursy', title: "Годовое планирование. Урок 4", duration: '10:01', views: 112, done: false, isNew: false, date: '15.12.2025' },
-  { id: 43, kinescopeId: '8d2b2c1d-976b-48d2-ba6f-55d30d2fda29', moduleId: 'mini-kursy', title: "Годовое планирование. Урок 3", duration: '40:38', views: 119, done: false, isNew: false, date: '15.12.2025' },
-  { id: 44, kinescopeId: '3a5bce3a-01d1-40b2-a1ff-63f4a62b6b0d', moduleId: 'mini-kursy', title: "Годовое планирование. Урок 2", duration: '38:33', views: 126, done: false, isNew: false, date: '15.12.2025' },
-  { id: 45, kinescopeId: '5c40c5c1-9e99-4bea-a048-74d3903ee2b7', moduleId: 'mini-kursy', title: "Годовое планирование. Урок 1", duration: '19:53', views: 133, done: false, isNew: false, date: '15.12.2025' },
+  { id: 40, kinescopeId: 'a14e2a35-4c16-443f-a3ce-f3219024a7bc', moduleId: 'kurs-godplan', title: "Урок 6. Итоговый план", duration: '9:12', views: 98, done: false, isNew: false, date: '15.12.2025' },
+  { id: 41, kinescopeId: '52725fac-8b44-4c2f-81b5-9902f16775b8', moduleId: 'kurs-godplan', title: "Урок 5. Маркетинг план", duration: '4:33', views: 105, done: false, isNew: false, date: '15.12.2025' },
+  { id: 42, kinescopeId: '2d4afc2f-5022-417c-a29d-a02b75855a11', moduleId: 'kurs-godplan', title: "Урок 4. Финансовый план", duration: '10:01', views: 112, done: false, isNew: false, date: '15.12.2025' },
+  { id: 43, kinescopeId: '8d2b2c1d-976b-48d2-ba6f-55d30d2fda29', moduleId: 'kurs-godplan', title: "Урок 3. Цели и метрики", duration: '40:38', views: 119, done: false, isNew: false, date: '15.12.2025' },
+  { id: 44, kinescopeId: '3a5bce3a-01d1-40b2-a1ff-63f4a62b6b0d', moduleId: 'kurs-godplan', title: "Урок 2. Анализ ниши", duration: '38:33', views: 126, done: false, isNew: false, date: '15.12.2025' },
+  { id: 45, kinescopeId: '5c40c5c1-9e99-4bea-a048-74d3903ee2b7', moduleId: 'kurs-godplan', title: "Урок 1. Итоги года", duration: '19:53', views: 133, done: false, isNew: false, date: '15.12.2025' },
   { id: 46, kinescopeId: 'b94ffa81-d552-44f6-bed7-45ac934cb9e4', moduleId: 'razbory-rk', title: "Разбор РК №3", duration: '1:03:43', views: 140, done: false, isNew: false, date: '09.12.2025' },
   { id: 47, kinescopeId: '1d2cccc0-6240-4d14-ad75-67a7788f4000', moduleId: 'efiry-max', title: "Настрой РК в новом кабинете WB с помощью плагина Evirma", duration: '1:33:45', views: 147, done: false, isNew: false, date: '09.12.2025' },
   { id: 48, kinescopeId: '10221532-8f1e-4e70-ac64-59f2448ec181', moduleId: 'efiry-max', title: "Доработка сравнения", duration: '10:16', views: 154, done: false, isNew: false, date: '09.12.2025' },
   { id: 49, kinescopeId: 'ce21fe99-f3e5-40bb-9429-cf531f39dbc0', moduleId: 'efiry-max', title: "Эфир от 08.12.2025", duration: '2:04:36', views: 161, done: false, isNew: false, date: '08.12.2025' },
   { id: 50, kinescopeId: '17f202c2-41ad-4392-8b94-45faa87ec3e2', moduleId: 'razbory-rk', title: "Работа в новом рекламном кабинете WB с помощью обновлённого функционала Evirma (2025.12.04 19:30)", duration: '2:28:47', views: 168, done: false, isNew: false, date: '04.12.2025' },
   { id: 51, kinescopeId: '341c29ae-baff-48f6-a651-ccb4f14b1312', moduleId: 'efiry-max', title: "Антикризисный найм: кого брать в 2026, чтобы не обанкротиться? Реальный опыт компаний-лидеров", duration: '1:44:04', views: 175, done: false, isNew: false, date: '04.12.2025' },
-  { id: 52, kinescopeId: 'cb09f056-8126-48eb-9f13-e93980c59732', moduleId: 'mini-kursy', title: "Урок 3. Veo-3", duration: '30:20', views: 182, done: false, isNew: false, date: '04.12.2025' },
-  { id: 53, kinescopeId: '304a29c1-b5f5-4b29-b001-e899cc811790', moduleId: 'mini-kursy', title: "Урок 2. Видео с Сора", duration: '8:33', views: 189, done: false, isNew: false, date: '04.12.2025' },
-  { id: 54, kinescopeId: '31d39cd8-3dd4-4ddb-9553-2f904ff06415', moduleId: 'mini-kursy', title: "Урок 1.Создание изображений", duration: '11:00', views: 196, done: false, isNew: false, date: '04.12.2025' },
-  { id: 55, kinescopeId: 'ff15a865-e554-4121-91d4-f49a566108b7', moduleId: 'efiry-max', title: "Новое событие (2025.12.03 18:35)", duration: '2:28', views: 203, done: false, isNew: false, date: '03.12.2025' },
+  { id: 52, kinescopeId: 'cb09f056-8126-48eb-9f13-e93980c59732', moduleId: 'kurs-neuro', title: "Урок 3. Veo-3", duration: '30:20', views: 182, done: false, isNew: false, date: '04.12.2025' },
+  { id: 53, kinescopeId: '304a29c1-b5f5-4b29-b001-e899cc811790', moduleId: 'kurs-neuro', title: "Урок 2. Видео с Sora", duration: '8:33', views: 189, done: false, isNew: false, date: '04.12.2025' },
+  { id: 54, kinescopeId: '31d39cd8-3dd4-4ddb-9553-2f904ff06415', moduleId: 'kurs-neuro', title: "Урок 1. Создание изображений", duration: '11:00', views: 196, done: false, isNew: false, date: '04.12.2025' },
+  { id: 55, kinescopeId: 'ff15a865-e554-4121-91d4-f49a566108b7', moduleId: 'efiry-max', title: "Эфир от 03.12.2025", duration: '2:28', views: 203, done: false, isNew: false, date: '03.12.2025' },
   { id: 56, kinescopeId: '6d598556-b7c7-485f-8d0d-0870899acbc2', moduleId: 'razbory-uch', title: "Разбор подписчика - пеленки", duration: '29:59', views: 10, done: false, isNew: false, date: '01.12.2025' },
   { id: 57, kinescopeId: 'ade7f007-2255-40e8-969a-bc28f24f3eb6', moduleId: 'razbory-rk', title: "Разбор РК 2", duration: '1:49:28', views: 17, done: false, isNew: false, date: '25.11.2025' },
   { id: 58, kinescopeId: '9e5a73fa-c9a1-4be1-8a5d-93cf6bb149e2', moduleId: 'efiry-max', title: "Продвижение через WB.Медиа", duration: '1:10:16', views: 24, done: false, isNew: false, date: '22.11.2025' },
-  { id: 59, kinescopeId: 'abd8d023-942a-4956-a118-2f3429372b97', moduleId: 'efiry-max', title: "Фото 5", duration: '13:54', views: 31, done: false, isNew: false, date: '19.11.2025' },
-  { id: 60, kinescopeId: '9e5c9665-5f0d-4025-bc66-9fbdc190be6f', moduleId: 'efiry-max', title: "Фото 4", duration: '17:55', views: 38, done: false, isNew: false, date: '19.11.2025' },
-  { id: 61, kinescopeId: 'cfd8c3a4-5131-46fa-a161-cced106c8c51', moduleId: 'efiry-max', title: "Фото 3", duration: '17:41', views: 45, done: false, isNew: false, date: '19.11.2025' },
-  { id: 62, kinescopeId: 'aedac1ae-e64f-4b66-9501-599db21418c6', moduleId: 'efiry-max', title: "Фото 2", duration: '11:49', views: 52, done: false, isNew: false, date: '19.11.2025' },
-  { id: 63, kinescopeId: '8b402144-c6ee-45ac-b946-e38c209b8405', moduleId: 'efiry-max', title: "Фото 1", duration: '29:49', views: 59, done: false, isNew: false, date: '19.11.2025' },
+  { id: 59, kinescopeId: 'abd8d023-942a-4956-a118-2f3429372b97', moduleId: 'kurs-foto', title: "Урок 5. Видеообложка", duration: '13:54', views: 31, done: false, isNew: false, date: '19.11.2025' },
+  { id: 60, kinescopeId: '9e5c9665-5f0d-4025-bc66-9fbdc190be6f', moduleId: 'kurs-foto', title: "Урок 4. Продающий контент", duration: '17:55', views: 38, done: false, isNew: false, date: '19.11.2025' },
+  { id: 61, kinescopeId: 'cfd8c3a4-5131-46fa-a161-cced106c8c51', moduleId: 'kurs-foto', title: "Урок 3. Инфографика", duration: '17:41', views: 45, done: false, isNew: false, date: '19.11.2025' },
+  { id: 62, kinescopeId: 'aedac1ae-e64f-4b66-9501-599db21418c6', moduleId: 'kurs-foto', title: "Урок 2. Главное фото", duration: '11:49', views: 52, done: false, isNew: false, date: '19.11.2025' },
+  { id: 63, kinescopeId: '8b402144-c6ee-45ac-b946-e38c209b8405', moduleId: 'kurs-foto', title: "Урок 1. Первое впечатление", duration: '29:49', views: 59, done: false, isNew: false, date: '19.11.2025' },
   { id: 64, kinescopeId: 'dc9d7ce2-9b4b-43aa-9d9d-09dbd64863ee', moduleId: 'efiry-max', title: "Эфир от 18.11.2025", duration: '1:10:50', views: 66, done: false, isNew: false, date: '18.11.2025' },
   { id: 65, kinescopeId: '1c6abfd2-d0c9-4fa5-8b9d-611f72c1ce0a', moduleId: 'efiry-max', title: "Наколенники", duration: '46:57', views: 73, done: false, isNew: false, date: '18.11.2025' },
   { id: 66, kinescopeId: '2a6d3933-d1c6-4e36-983a-278ccdd367ea', moduleId: 'efiry-max', title: "Эфир от 13.11.2025", duration: '1:08:36', views: 80, done: false, isNew: false, date: '13.11.2025' },
   { id: 67, kinescopeId: 'fcc9b884-53ad-4924-a08b-488a28da1b2b', moduleId: 'efiry-max', title: "Эфир от 07.11.2025", duration: '1:03:21', views: 87, done: false, isNew: false, date: '07.11.2025' },
   { id: 68, kinescopeId: '0d66d13c-aa1d-4a76-b755-41ff7e4c0ef9', moduleId: 'efiry-max', title: "Эфир от 31.10.2025", duration: '23:07', views: 94, done: false, isNew: false, date: '31.10.2025' },
   { id: 69, kinescopeId: '8bd28682-2f92-42e7-a570-d132621a26bb', moduleId: 'efiry-max', title: "Эфир от 30.10.2025", duration: '1:15:55', views: 101, done: false, isNew: false, date: '30.10.2025' },
-  { id: 70, kinescopeId: 'a098e6aa-195e-47fb-a610-51fb61010108', moduleId: 'efiry-max', title: "Video1700064762", duration: '20:30', views: 108, done: false, isNew: false, date: '23.10.2025' },
+  { id: 70, kinescopeId: 'a098e6aa-195e-47fb-a610-51fb61010108', moduleId: 'efiry-max', title: "Эфир от 23.10.2025", duration: '20:30', views: 108, done: false, isNew: false, date: '23.10.2025' },
   { id: 71, kinescopeId: 'b1bb95dc-2d26-4364-8510-4ae7ab2dbb9c', moduleId: 'razbory-uch', title: "Разбор карточки участника закрытого канала — мужской свитер", duration: '23:34', views: 115, done: false, isNew: false, date: '22.10.2025' },
   { id: 72, kinescopeId: '1b3c3a2a-24c7-4561-9fea-6c5686eeec68', moduleId: 'efiry-max', title: "Эфир от 17.10.2025", duration: '1:18:57', views: 122, done: false, isNew: false, date: '17.10.2025' },
   { id: 73, kinescopeId: '8c4f5a45-e1a4-43fc-a261-15dab1d5bbf3', moduleId: 'razbory-uch', title: "Разбор камеры", duration: '38:14', views: 129, done: false, isNew: false, date: '15.10.2025' },
-  { id: 74, kinescopeId: '140c4422-c5d1-4b7b-8448-7d592e297557', moduleId: 'efiry-max', title: "Оракул запросов", duration: '17:10', views: 136, done: false, isNew: false, date: '15.10.2025' },
-  { id: 75, kinescopeId: '69f5b05a-e629-4c08-a79d-ce35e3a95682', moduleId: 'efiry-max', title: "МпСтатс", duration: '14:52', views: 143, done: false, isNew: false, date: '15.10.2025' },
-  { id: 76, kinescopeId: 'cb88393a-e69e-47e7-a23c-806e014b140a', moduleId: 'efiry-max', title: "Джем", duration: '8:19', views: 150, done: false, isNew: false, date: '15.10.2025' },
-  { id: 77, kinescopeId: '745faba6-b317-4af6-982f-6846640cfecc', moduleId: 'efiry-max', title: "Гугл трендс", duration: '15:18', views: 157, done: false, isNew: false, date: '15.10.2025' },
-  { id: 78, kinescopeId: 'b13a6c87-383c-425a-85c0-7946a0db4cee', moduleId: 'efiry-max', title: "ТикТок", duration: '32:28', views: 164, done: false, isNew: false, date: '15.10.2025' },
-  { id: 79, kinescopeId: 'c1b945f3-6647-4748-a2e8-bb1510d28d31', moduleId: 'mini-kursy', title: "Как правильно запустить новинку на Wildberries. Часть 2", duration: '2:08:27', views: 171, done: false, isNew: false, date: '10.10.2025' },
+  { id: 74, kinescopeId: '140c4422-c5d1-4b7b-8448-7d592e297557', moduleId: 'kurs-trendy', title: "Оракул запросов", duration: '17:10', views: 136, done: false, isNew: false, date: '15.10.2025' },
+  { id: 75, kinescopeId: '69f5b05a-e629-4c08-a79d-ce35e3a95682', moduleId: 'kurs-trendy', title: "МпСтатс", duration: '14:52', views: 143, done: false, isNew: false, date: '15.10.2025' },
+  { id: 76, kinescopeId: 'cb88393a-e69e-47e7-a23c-806e014b140a', moduleId: 'kurs-trendy', title: "Джем", duration: '8:19', views: 150, done: false, isNew: false, date: '15.10.2025' },
+  { id: 77, kinescopeId: '745faba6-b317-4af6-982f-6846640cfecc', moduleId: 'kurs-trendy', title: "Google Trends", duration: '15:18', views: 157, done: false, isNew: false, date: '15.10.2025' },
+  { id: 78, kinescopeId: 'b13a6c87-383c-425a-85c0-7946a0db4cee', moduleId: 'kurs-trendy', title: "ТикТок тренды", duration: '32:28', views: 164, done: false, isNew: false, date: '15.10.2025' },
+  { id: 79, kinescopeId: 'c1b945f3-6647-4748-a2e8-bb1510d28d31', moduleId: 'kurs-strategiya', title: "Как правильно запустить новинку на Wildberries. Часть 2", duration: '2:08:27', views: 171, done: false, isNew: false, date: '10.10.2025' },
   { id: 80, kinescopeId: 'bfafb217-0159-4887-a1d1-04618d0103b1', moduleId: 'efiry-max', title: "Прямой эфир: ВОПРОС–ОТВЕТ с Максимом", duration: '1:33:57', views: 178, done: false, isNew: false, date: '09.10.2025' },
   { id: 81, kinescopeId: 'd7a29f66-70b9-48aa-a712-67bc27a640f0', moduleId: 'efiry-max', title: "Эфир от 07.10.2025", duration: '1:56:20', views: 185, done: false, isNew: false, date: '07.10.2025' },
   { id: 82, kinescopeId: '7ee70ad2-c14b-448b-8ec4-d54f1b8f16c7', moduleId: 'razbory-uch', title: "🔥 Разбор карточки участника закрытого канала — косметика 🌿", duration: '39:04', views: 192, done: false, isNew: false, date: '07.10.2025' },
@@ -2546,11 +2595,11 @@ const DEFAULT_LESSONS = [
   { id: 105, kinescopeId: '9cea53ef-0b5a-499b-b4ab-19186cad4866', moduleId: 'razbory-topov', title: "Разбор ТОПовой карточки \"Платья ROYSTORM\"", duration: '35:11', views: 153, done: false, isNew: false, date: '28.08.2025' },
   { id: 106, kinescopeId: 'b8e712fb-7774-442f-8754-e64d2175e5da', moduleId: 'razbory-topov', title: "Разбор ТОПовой карточки \"Очки солнцезащитные\"", duration: '33:31', views: 160, done: false, isNew: false, date: '28.08.2025' },
   { id: 107, kinescopeId: '438a3254-da7b-4195-91a6-778f0c21798c', moduleId: 'razbory-uch', title: "Разбор участника. Категория \" Платья женские\"", duration: '32:52', views: 167, done: false, isNew: false, date: '28.08.2025' },
-  { id: 108, kinescopeId: '4787affd-1af1-49a2-8152-9bd49a6149b5', moduleId: 'mini-kursy', title: "Урок 3. Финансовая модель", duration: '33:16', views: 174, done: false, isNew: false, date: '27.08.2025' },
-  { id: 109, kinescopeId: '55ea9d60-b6e6-4300-a83a-cf23f3c33062', moduleId: 'mini-kursy', title: "Урок 4. Про сертификацию для ВЭД", duration: '45:54', views: 181, done: false, isNew: false, date: '27.08.2025' },
-  { id: 110, kinescopeId: '2e7f0e9b-92d5-4a0b-8857-b18d33955856', moduleId: 'mini-kursy', title: "Урок 2. Основные пути обеления", duration: '20:11', views: 188, done: false, isNew: false, date: '27.08.2025' },
-  { id: 111, kinescopeId: 'adf1abc5-1837-4ddb-bc15-a11516ef78c5', moduleId: 'mini-kursy', title: "Урок 1. Обеляем селлеров", duration: '43:33', views: 195, done: false, isNew: false, date: '27.08.2025' },
-  { id: 112, kinescopeId: '074f6d44-2c6f-43b0-917d-a3f6f6abdbb7', moduleId: 'mini-kursy', title: "Урок 5. Как начать возить в белую", duration: '46:32', views: 202, done: false, isNew: false, date: '27.08.2025' },
+  { id: 108, kinescopeId: '4787affd-1af1-49a2-8152-9bd49a6149b5', moduleId: 'kurs-obelenie', title: "Урок 3. Финансовая модель", duration: '33:16', views: 174, done: false, isNew: false, date: '27.08.2025' },
+  { id: 109, kinescopeId: '55ea9d60-b6e6-4300-a83a-cf23f3c33062', moduleId: 'kurs-obelenie', title: "Урок 4. Про сертификацию для ВЭД", duration: '45:54', views: 181, done: false, isNew: false, date: '27.08.2025' },
+  { id: 110, kinescopeId: '2e7f0e9b-92d5-4a0b-8857-b18d33955856', moduleId: 'kurs-obelenie', title: "Урок 2. Основные пути обеления", duration: '20:11', views: 188, done: false, isNew: false, date: '27.08.2025' },
+  { id: 111, kinescopeId: 'adf1abc5-1837-4ddb-bc15-a11516ef78c5', moduleId: 'kurs-obelenie', title: "Урок 1. Обеляем селлеров", duration: '43:33', views: 195, done: false, isNew: false, date: '27.08.2025' },
+  { id: 112, kinescopeId: '074f6d44-2c6f-43b0-917d-a3f6f6abdbb7', moduleId: 'kurs-obelenie', title: "Урок 5. Как начать возить в белую", duration: '46:32', views: 202, done: false, isNew: false, date: '27.08.2025' },
   { id: 113, kinescopeId: '1a851a5c-7fae-42ff-8711-38030d2d5a63', moduleId: 'efiry-max', title: "«Организационная структура отдела внешней рекламы»", duration: '1:41:39', views: 9, done: false, isNew: false, date: '12.08.2025' },
   { id: 114, kinescopeId: '1f318f81-3a52-4076-ab48-38ed58358e9c', moduleId: 'efiry-max', title: "Сбор SEO и его оптимизация", duration: '1:45:08', views: 16, done: false, isNew: false, date: '12.08.2025' },
   { id: 115, kinescopeId: 'ac34a1d1-c1c9-4e64-b6c8-87568f82f25a', moduleId: 'efiry-max', title: "Рука на пульсе Evirma", duration: '1:40:27', views: 23, done: false, isNew: false, date: '12.08.2025' },
@@ -2681,6 +2730,12 @@ const MODULE_COLORS = {
   'razbory-rk':      { bg: 'rgba(232,78,27,0.14)',   fg: '#E94E1B' },
   'tablicy':         { bg: 'rgba(139,92,246,0.14)',  fg: '#A78BFA' },
   'mini-kursy':      { bg: 'rgba(6,182,212,0.14)',   fg: '#22D3EE' },
+  'kurs-obelenie':   { bg: 'rgba(6,182,212,0.14)',   fg: '#22D3EE' },
+  'kurs-trendy':     { bg: 'rgba(61,214,140,0.14)',  fg: '#3DD68C' },
+  'kurs-foto':       { bg: 'rgba(236,72,153,0.14)',  fg: '#F472B6' },
+  'kurs-neuro':      { bg: 'rgba(245,184,46,0.14)',  fg: '#F5B82E' },
+  'kurs-godplan':    { bg: 'rgba(99,102,241,0.14)',  fg: '#818CF8' },
+  'kurs-strategiya': { bg: 'rgba(232,78,27,0.14)',   fg: '#E94E1B' },
 };
 function moduleIconStyle(modId) {
   const c = MODULE_COLORS[modId] || { bg: 'var(--accent-dim)', fg: 'var(--accent)' };
@@ -2999,12 +3054,24 @@ function Dashboard({ onNavigate, onLessonClick, user }) {
 function KnowledgeBase({ onLessonClick }) {
   const [activeModule, setActiveModule] = useState('all');
   const [search, setSearch] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
 
-  const filteredLessons = LESSONS.filter(l => {
-    const matchModule = activeModule === 'all' || l.moduleId === activeModule;
-    const matchSearch = !search || l.title.toLowerCase().includes(search.toLowerCase());
-    return matchModule && matchSearch;
-  });
+  function parseDate(d) {
+    if (!d) return 0;
+    const p = d.split('.');
+    if (p.length === 3) return new Date(p[2], p[1]-1, p[0]).getTime();
+    return 0;
+  }
+
+  const showingAll = activeModule === 'all' && !search;
+
+  const filteredLessons = LESSONS
+    .filter(l => {
+      const matchModule = activeModule === 'all' || l.moduleId === activeModule;
+      const matchSearch = !search || l.title.toLowerCase().includes(search.toLowerCase());
+      return matchModule && matchSearch;
+    })
+    .sort((a, b) => sortOrder === 'newest' ? parseDate(b.date) - parseDate(a.date) : parseDate(a.date) - parseDate(b.date));
 
   return h('div', { className: 'content-wide' },
     h('div', { className: 'modules-grid' },
@@ -3026,10 +3093,18 @@ function KnowledgeBase({ onLessonClick }) {
         h('input', {
           placeholder: 'Поиск по урокам...',
           value: search,
-          onChange: e => setSearch(e.target.value)
+          onChange: e => { setSearch(e.target.value); if (e.target.value) setActiveModule('all'); }
         })
       ),
-      h('div', { style:{fontSize:13,color:'var(--text-dim)',whiteSpace:'nowrap'} },
+      !showingAll && h('select', {
+        value: sortOrder,
+        onChange: e => setSortOrder(e.target.value),
+        style: { background:'var(--bg2)', color:'var(--text1)', border:'1px solid var(--border)', borderRadius:8, padding:'6px 10px', fontSize:13, cursor:'pointer' }
+      },
+        h('option', { value: 'newest' }, 'Сначала новые'),
+        h('option', { value: 'oldest' }, 'Сначала старые')
+      ),
+      !showingAll && h('div', { style:{fontSize:13,color:'var(--text-dim)',whiteSpace:'nowrap'} },
         filteredLessons.length + ' уроков'
       ),
       (activeModule !== 'all' || search) && h('button', {
@@ -3038,39 +3113,43 @@ function KnowledgeBase({ onLessonClick }) {
       }, 'Сбросить')
     ),
 
-    h('div', { className: 'section-head', style: { marginTop: '0.5rem' } },
+    !showingAll && h('div', { className: 'section-head', style: { marginTop: '0.5rem' } },
       h('div', { className: 'section-title' },
-        search ? 'Результаты поиска' : activeModule === 'all' ? 'Все уроки' : MODULES.find(m => m.id === activeModule)?.title
+        search ? 'Результаты поиска' : MODULES.find(m => m.id === activeModule)?.title
       )
     ),
 
-    filteredLessons.length === 0
-      ? h('div', { style:{textAlign:'center',padding:'40px',color:'var(--text-dim)'} }, 'Ничего не найдено по запросу "' + search + '"')
-      : h('div', { className: 'lessons-list' },
-          ...filteredLessons.map(lesson => {
-            const mod = MODULES.find(m => m.id === lesson.moduleId);
-            return h('div', { key: lesson.id, className: 'lesson-card', onClick: () => onLessonClick(lesson) },
-              h('div', { className: 'lesson-thumb' },
-                lesson.embed_url && h('img', { src: lesson.poster_url, loading:'lazy', onError: e => { e.target.style.display='none'; } }),
-                h(Icon.play),
-                h('div', { className: 'lesson-thumb-duration' }, lesson.duration)
-              ),
-              h('div', { className: 'lesson-info' },
-                h('div', { className: 'lesson-title' }, lesson.title),
-                h('div', { className: 'lesson-meta' },
-                  h('span', null, mod?.title),
-                  h('span', { className: 'lesson-meta-dot' }, '•'),
-                  h('span', null, lesson.duration),
-                  lesson.files && lesson.files.length > 0 && h('span', { className: 'lesson-meta-dot' }, '•'),
-                  lesson.files && lesson.files.length > 0 && h('span', { style:{color:'var(--accent)'} }, '📎 ' + lesson.files.length + ' файл' + (lesson.files.length === 1 ? '' : lesson.files.length < 5 ? 'а' : 'ов'))
-                )
-              ),
-              lesson.done
-                ? h('div', { className: 'lesson-status done' }, h(Icon.check), 'Просмотрено')
-                : lesson.isNew ? h('div', { className: 'lesson-status new' }, 'Новое') : null
-            );
-          })
-        )
+    !showingAll && (
+      filteredLessons.length === 0
+        ? h('div', { style:{textAlign:'center',padding:'40px',color:'var(--text-dim)'} }, 'Ничего не найдено по запросу "' + search + '"')
+        : h('div', { className: 'lessons-list' },
+            ...filteredLessons.map(lesson => {
+              const mod = MODULES.find(m => m.id === lesson.moduleId);
+              return h('div', { key: lesson.id, className: 'lesson-card', onClick: () => onLessonClick(lesson) },
+                h('div', { className: 'lesson-thumb' },
+                  lesson.embed_url && h('img', { src: lesson.poster_url, loading:'lazy', onError: e => { e.target.style.display='none'; } }),
+                  h(Icon.play),
+                  h('div', { className: 'lesson-thumb-duration' }, lesson.duration)
+                ),
+                h('div', { className: 'lesson-info' },
+                  h('div', { className: 'lesson-title' }, lesson.title),
+                  h('div', { className: 'lesson-meta' },
+                    h('span', null, mod?.title),
+                    h('span', { className: 'lesson-meta-dot' }, '•'),
+                    h('span', null, lesson.duration),
+                    lesson.date && h('span', { className: 'lesson-meta-dot' }, '•'),
+                    lesson.date && h('span', null, lesson.date),
+                    lesson.files && lesson.files.length > 0 && h('span', { className: 'lesson-meta-dot' }, '•'),
+                    lesson.files && lesson.files.length > 0 && h('span', { style:{color:'var(--accent)'} }, '📎 ' + lesson.files.length + ' файл' + (lesson.files.length === 1 ? '' : lesson.files.length < 5 ? 'а' : 'ов'))
+                  )
+                ),
+                lesson.done
+                  ? h('div', { className: 'lesson-status done' }, h(Icon.check), 'Просмотрено')
+                  : lesson.isNew ? h('div', { className: 'lesson-status new' }, 'Новое') : null
+              );
+            })
+          )
+    )
   );
 }
 
@@ -3375,22 +3454,110 @@ function StudentsBase() {
 }
 
 // ===== CONTRACTORS =====
+function ContractorModal({ c, onClose, onRate }) {
+  const [hovered,  setHovered]  = useState(0);
+  const [myRating, setMyRating] = useState(c.my_rating || 0);
+  const [avgRating, setAvgRating] = useState(c.avg_rating || c.rating || 0);
+  const [ratingCount, setRatingCount] = useState(c.rating_count || 0);
+  const [copied,   setCopied]   = useState(false);
+
+  function copyPromo(code) {
+    navigator.clipboard?.writeText(code);
+    setCopied(true); setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function handleRate(stars) {
+    setMyRating(stars);
+    try {
+      const res = await api.post('/api/contractors/' + c.id + '/rate', { rating: stars });
+      setAvgRating(res.avg_rating);
+      setRatingCount(res.rating_count);
+      onRate && onRate(c.id, res.avg_rating, res.rating_count, stars);
+    } catch(e) {}
+  }
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  const displayRating = Math.round(avgRating * 10) / 10;
+
+  return h('div', { className: 'contractor-modal-overlay', onClick: e => { if (e.target === e.currentTarget) onClose(); } },
+    h('div', { className: 'contractor-modal' },
+      h('div', { className: 'contractor-modal-head' },
+        h('div', null,
+          h('div', { className: 'contractor-modal-title' }, c.name),
+          h('div', { className: 'contractor-category', style:{marginTop:6} }, c.category)
+        ),
+        h('button', { className: 'contractor-modal-close', onClick: onClose }, '✕')
+      ),
+
+      (c.description || c.desc) && h('div', { className: 'contractor-modal-section' },
+        h('div', { className: 'contractor-modal-label' }, 'Описание'),
+        h('div', { className: 'contractor-modal-text' }, c.description || c.desc)
+      ),
+
+      c.contact && h('div', { className: 'contractor-modal-section' },
+        h('div', { className: 'contractor-modal-label' }, 'Контакт'),
+        h('div', { className: 'contractor-contact', style:{marginBottom:0} },
+          h(Icon.telegram),
+          h('span', null, c.contact)
+        )
+      ),
+
+      (c.promo_code || c.promo) && h('div', { className: 'contractor-modal-section' },
+        h('div', { className: 'contractor-modal-label' }, 'Промокод'),
+        h('div', { className: 'contractor-promo' },
+          h('div', { className: 'contractor-promo-left' },
+            h('div', { className: 'contractor-promo-label' }, 'Промокод'),
+            h('div', { className: 'contractor-promo-code' }, c.promo_code || c.promo)
+          ),
+          h('button', { className: 'contractor-promo-btn', onClick: () => copyPromo(c.promo_code || c.promo) },
+            copied ? 'СКОПИРОВАНО' : 'КОПИРОВАТЬ'
+          )
+        )
+      ),
+
+      h('div', { className: 'contractor-modal-section' },
+        h('div', { className: 'contractor-modal-label' }, 'Рейтинг'),
+        h('div', { className: 'contractor-modal-rating-row' },
+          displayRating > 0 && h('div', { className: 'contractor-modal-avg' }, displayRating),
+          displayRating > 0 && h(Icon.star, { style:{width:22,height:22,fill:'var(--yellow)',color:'var(--yellow)'} }),
+          h('div', { className: 'contractor-modal-cnt' }, ratingCount > 0 ? ratingCount + ' оценок' : 'Нет оценок')
+        ),
+        h('div', { className: 'contractor-modal-my-label' }, myRating > 0 ? 'Ваша оценка: ' + myRating : 'Оцените подрядчика:'),
+        h('div', { className: 'contractor-modal-stars' },
+          ...[1,2,3,4,5].map(n =>
+            h('button', {
+              key: n,
+              className: 'contractor-modal-star' + (n <= (hovered || myRating) ? ' filled' : ''),
+              onMouseEnter: () => setHovered(n),
+              onMouseLeave: () => setHovered(0),
+              onClick: () => handleRate(n)
+            }, '★')
+          )
+        )
+      )
+    )
+  );
+}
+
 function ContractorsBase() {
   const [activeCat,    setActiveCat]    = useState('Все');
   const [contractors,  setContractors]  = useState([]);
   const [categories,   setCategories]   = useState([]);
   const [loading,      setLoading]      = useState(true);
-  const [copied,       setCopied]       = useState(null);
+  const [selected,     setSelected]     = useState(null);
 
   useEffect(() => {
     api.get('/api/contractors')
       .then(res => {
-        // Нормализуем поля: API отдаёт description/contact/promo_code, компонент ждёт desc/contact/promo
         setContractors(res.contractors.map(c => ({ ...c, desc: c.description, promo: c.promo_code })));
         setCategories(['Все', ...res.categories.map(c => c.category)]);
       })
       .catch(() => {
-        // Fallback на хардкод если API недоступен
         setContractors(CONTRACTORS);
         setCategories(['Все', ...new Set(CONTRACTORS.map(c => c.category))]);
       })
@@ -3399,44 +3566,126 @@ function ContractorsBase() {
 
   const filtered = activeCat === 'Все' ? contractors : contractors.filter(c => c.category === activeCat);
 
-  function copyPromo(id, code) {
-    navigator.clipboard?.writeText(code);
-    setCopied(id); setTimeout(() => setCopied(null), 1500);
+  function handleRate(id, avg, cnt, mine) {
+    setContractors(cs => cs.map(c => c.id === id ? { ...c, avg_rating: avg, rating_count: cnt, my_rating: mine } : c));
+    if (selected?.id === id) setSelected(s => ({ ...s, avg_rating: avg, rating_count: cnt, my_rating: mine }));
   }
 
   if (loading) return h('div', { style:{textAlign:'center',padding:'60px',color:'var(--text-dim)'} }, '⏳ Загружаем подрядчиков...');
 
   return h('div', { className: 'content-wide' },
+    selected && h(ContractorModal, { c: selected, onClose: () => setSelected(null), onRate: handleRate }),
+
     h('div', { className: 'contractors-categories' },
       ...categories.map(cat =>
         h('button', { key: cat, className: 'cat-chip ' + (activeCat === cat ? 'active' : ''), onClick: () => setActiveCat(cat) }, cat)
       )
     ),
+
     h('div', { className: 'contractors-grid' },
-      ...filtered.map(c =>
-        h('div', { key: c.id, className: 'contractor-card' },
+      ...filtered.map(c => {
+        const avg = c.avg_rating || c.rating || 0;
+        const displayAvg = Math.round(avg * 10) / 10;
+        const desc = c.description || c.desc || '';
+        return h('div', { key: c.id, className: 'contractor-card', onClick: () => setSelected(c) },
           h('div', { className: 'contractor-head' },
             h('div', { className: 'contractor-name-block' },
               h('div', { className: 'contractor-name' }, c.name),
-              h('div', { className: 'contractor-category' }, c.category)
+              h('div', { className: 'contractor-category', style:{marginTop:4} }, c.category)
             ),
-            c.rating > 0 && h('div', { className: 'contractor-rating' }, h(Icon.star), c.rating)
-          ),
-          h('div', { className: 'contractor-desc' }, c.desc || c.description || ''),
-          c.contact && h('div', { className: 'contractor-contact' },
-            h(Icon.telegram),
-            h('span', null, c.contact)
-          ),
-          c.promo && h('div', { className: 'contractor-promo' },
-            h('div', { className: 'contractor-promo-left' },
-              h('div', { className: 'contractor-promo-label' }, 'Промокод'),
-              h('div', { className: 'contractor-promo-code' }, c.promo)
-            ),
-            h('button', { className: 'contractor-promo-btn', onClick: () => copyPromo(c.id, c.promo) },
-              copied === c.id ? 'СКОПИРОВАНО' : 'КОПИРОВАТЬ'
+            displayAvg > 0 && h('div', { className: 'contractor-rating' },
+              h(Icon.star),
+              displayAvg,
+              c.rating_count > 0 && h('span', { style:{fontSize:11,color:'var(--text-dim)',fontWeight:400} }, ' (' + c.rating_count + ')')
             )
+          ),
+          desc && h('div', { className: 'contractor-desc' }, desc),
+          h('div', { style:{marginTop:'auto',paddingTop:10,fontSize:13,color:'var(--text-dim)'} },
+            (c.promo_code || c.promo) && h('span', { style:{color:'var(--accent)',fontWeight:700} }, 'Есть промокод · '),
+            'Нажмите для подробностей'
           )
+        );
+      })
+    )
+  );
+}
+
+// ===== ADD EMPLOYEE MODAL =====
+function AddEmployeeModal({ user, onClose }) {
+  const [period,  setPeriod]  = useState('1');
+  const [copied,  setCopied]  = useState(false);
+
+  const tgId = user?.id || user?.telegram_id || '';
+  const inviteLink = 'https://t.me/evirmaclub_bot?start=emp_' + tgId + '_' + period + 'm';
+
+  const payLinks = {
+    '1':  'https://t.me/evirmaclub_bot?start=pay_emp_1m',
+    '3':  'https://t.me/evirmaclub_bot?start=pay_emp_3m',
+    '6':  'https://t.me/evirmaclub_bot?start=pay_emp_6m',
+    '12': 'https://t.me/evirmaclub_bot?start=pay_emp_12m',
+  };
+
+  function copy() {
+    navigator.clipboard?.writeText(inviteLink);
+    setCopied(true); setTimeout(() => setCopied(false), 1500);
+  }
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  return h('div', { className: 'contractor-modal-overlay', onClick: e => { if (e.target === e.currentTarget) onClose(); } },
+    h('div', { className: 'contractor-modal' },
+      h('div', { className: 'contractor-modal-head' },
+        h('div', { className: 'contractor-modal-title' }, 'Добавить сотрудника'),
+        h('button', { className: 'contractor-modal-close', onClick: onClose }, '✕')
+      ),
+
+      h('div', { className: 'contractor-modal-section' },
+        h('div', { className: 'contractor-modal-label' }, 'Срок подписки'),
+        h('select', {
+          value: period,
+          onChange: e => setPeriod(e.target.value),
+          style: { width:'100%', background:'var(--bg3)', color:'var(--text)', border:'1px solid var(--border)', borderRadius:10, padding:'10px 14px', fontSize:15, cursor:'pointer', fontFamily:'inherit' }
+        },
+          h('option', { value:'1' },  '1 месяц'),
+          h('option', { value:'3' },  '3 месяца'),
+          h('option', { value:'6' },  '6 месяцев'),
+          h('option', { value:'12' }, '12 месяцев')
         )
+      ),
+
+      h('div', { className: 'contractor-modal-section' },
+        h('div', { className: 'contractor-modal-label' }, 'Инструкция для сотрудника'),
+        h('div', { style:{background:'var(--bg3)',borderRadius:12,padding:'14px 16px',fontSize:14,color:'var(--text2)',lineHeight:1.7,border:'1px solid var(--border)'} },
+          '1. Оплатите подписку через кнопку ниже', h('br'),
+          '2. Отправьте сотруднику ссылку-приглашение', h('br'),
+          '3. Сотрудник переходит по ссылке и получает доступ', h('br'),
+          '4. Вы увидите его в списке сотрудников'
+        )
+      ),
+
+      h('div', { className: 'contractor-modal-section' },
+        h('div', { className: 'contractor-modal-label' }, 'Ссылка-приглашение для сотрудника'),
+        h('div', { style:{display:'flex',gap:8,alignItems:'center'} },
+          h('div', { style:{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 14px',fontSize:13,color:'var(--text2)',wordBreak:'break-all',fontFamily:'monospace'} }, inviteLink),
+          h('button', {
+            onClick: copy,
+            style:{background:copied?'var(--green)':'var(--accent)',color:'white',border:'none',borderRadius:10,padding:'10px 16px',cursor:'pointer',fontWeight:700,fontSize:13,whiteSpace:'nowrap',transition:'background 0.2s'}
+          }, copied ? '✓ Скопировано' : 'Копировать')
+        )
+      ),
+
+      h('a', {
+        href: payLinks[period],
+        target: '_blank',
+        rel: 'noopener',
+        style:{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:'var(--accent)',color:'white',borderRadius:12,padding:'14px',textDecoration:'none',fontWeight:700,fontSize:16,transition:'background 0.15s'}
+      },
+        h(Icon.telegram),
+        'Перейти к оплате в Telegram'
       )
     )
   );
@@ -3444,13 +3693,14 @@ function ContractorsBase() {
 
 // ===== PROFILE =====
 function Profile({ user }) {
-  const [sub,         setSub]         = useState(null);
-  const [employees,   setEmployees]   = useState([]);
-  const [empSlots,    setEmpSlots]    = useState(5);
-  const [profileData, setProfileData] = useState(null);
-  const [editing,     setEditing]     = useState(false);
-  const [editData,    setEditData]    = useState({});
-  const [saving,      setSaving]      = useState(false);
+  const [sub,            setSub]            = useState(null);
+  const [employees,      setEmployees]      = useState([]);
+  const [empSlots,       setEmpSlots]       = useState(5);
+  const [profileData,    setProfileData]    = useState(null);
+  const [editing,        setEditing]        = useState(false);
+  const [editData,       setEditData]       = useState({});
+  const [saving,         setSaving]         = useState(false);
+  const [showAddEmpModal, setShowAddEmpModal] = useState(false);
 
   const name     = user ? ((user.first_name||'') + ' ' + (user.last_name||'')).trim() || 'Участник' : 'Участник';
   const handle   = user?.username ? '@' + user.username : '';
@@ -3479,6 +3729,8 @@ function Profile({ user }) {
   }
 
   return h('div', { className: 'profile-wrap' },
+    showAddEmpModal && h(AddEmployeeModal, { user, onClose: () => setShowAddEmpModal(false) }),
+
     h('div', { className: 'profile-header' },
       user?.photo_url
         ? h('img', { src: user.photo_url, className: 'profile-avatar-lg', style:{objectFit:'cover'} })
@@ -3588,6 +3840,10 @@ function Profile({ user }) {
                 h('div', { className: 'profile-field-label' }, 'Цель участия'),
                 h('div', { className: 'profile-field-value', style:{maxWidth:280} }, profileData.goal)
               ),
+              profileData?.strengths && h('div', { className: 'profile-field' },
+                h('div', { className: 'profile-field-label' }, 'Сильные стороны'),
+                h('div', { className: 'profile-field-value', style:{maxWidth:280} }, profileData.strengths)
+              ),
               h('button', { className:'profile-edit-btn', style:{marginTop:12}, onClick: () => { setEditData({full_name:profileData?.full_name||name, phone:profileData?.phone||'', city:profileData?.city||'', email:profileData?.email||'', revenue:profileData?.revenue||'', niche:profileData?.niche||'', goal:profileData?.goal||'', strengths:profileData?.strengths||'', can_share:!!profileData?.can_share}); setEditing(true); } }, h(Icon.edit), 'Редактировать профиль')
             )
       ),
@@ -3623,17 +3879,15 @@ function Profile({ user }) {
             )
           ),
           ...Array.from({ length: Math.max(0, empSlots - employees.length) }).map((_, i) =>
-            h('a', {
+            h('div', {
               key: 'empty' + i,
               className: 'employee-slot empty',
-              href: 'https://t.me/evirmaclub_bot?start=add_employee',
-              target: '_blank',
-              rel: 'noopener',
-              style: { textDecoration: 'none', cursor: 'pointer' }
+              style: { cursor: 'pointer' },
+              onClick: () => setShowAddEmpModal(true)
             },
               h('div', { className: 'add-employee-icon' }, h(Icon.plus)),
               h('div', { className: 'add-employee-text' }, 'Добавить сотрудника'),
-              h('div', { style:{fontSize:'11px',color:'var(--accent)',marginTop:4,fontWeight:600} }, 'Через @evirmaclub_bot')
+              h('div', { style:{fontSize:'11px',color:'var(--accent)',marginTop:4,fontWeight:600} }, 'Нажмите для инструкции')
             )
           )
         )
@@ -4469,22 +4723,34 @@ function AdminContent({ onDataChange }) {
 // ===== APP =====
 // Маппинг названий разделов из API → slug для moduleIconStyle
 const MODULE_SLUG_MAP = {
-  'Эфиры с Максом':            'efiry-max',
-  'Эфиры со спикерами':        'efiry-spikery',
-  'Разборы топов':              'razbory-topov',
-  'Разборы участников':         'razbory-uch',
-  'Разборы рекламных кампаний': 'razbory-rk',
-  'Таблицы':                    'tablicy',
-  'Мини-курсы':                 'mini-kursy',
+  'Эфиры с Максом':                                      'efiry-max',
+  'Эфиры со спикерами':                                   'efiry-spikery',
+  'Разборы топов':                                        'razbory-topov',
+  'Разборы участников':                                   'razbory-uch',
+  'Разборы рекламных кампаний':                           'razbory-rk',
+  'Таблицы':                                              'tablicy',
+  'Мини-курсы':                                          'mini-kursy',
+  'Обеление с нуля':                                      'kurs-obelenie',
+  'Анализ трендов: как найти Лабубу?':                    'kurs-trendy',
+  'Фотоворонка от первого взгляда до покупки':            'kurs-foto',
+  'Новогодний нейроконтент':                              'kurs-neuro',
+  'Сценарий годового планирования товарного бизнеса':     'kurs-godplan',
+  'Стратегия продвижения карточки товара':                'kurs-strategiya',
 };
 const MODULE_ICON_MAP = {
-  'Эфиры с Максом':            'mic',
-  'Эфиры со спикерами':        'users',
-  'Разборы топов':              'trending',
-  'Разборы участников':         'target',
-  'Разборы рекламных кампаний': 'zap',
-  'Таблицы':                    'table',
-  'Мини-курсы':                 'book',
+  'Эфиры с Максом':                                      'mic',
+  'Эфиры со спикерами':                                   'users',
+  'Разборы топов':                                        'trending',
+  'Разборы участников':                                   'target',
+  'Разборы рекламных кампаний':                           'zap',
+  'Таблицы':                                              'table',
+  'Мини-курсы':                                          'book',
+  'Обеление с нуля':                                      'shield',
+  'Анализ трендов: как найти Лабубу?':                    'trending',
+  'Фотоворонка от первого взгляда до покупки':            'camera',
+  'Новогодний нейроконтент':                              'star',
+  'Сценарий годового планирования товарного бизнеса':     'calendar',
+  'Стратегия продвижения карточки товара':                'zap',
 };
 
 async function loadApiData() {
