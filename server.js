@@ -378,13 +378,35 @@ app.get('/api/students/filters', requireAuth, (req, res) => {
 // ── ПОДРЯДЧИКИ ──
 app.get('/api/contractors', requireAuth, (req, res) => {
   const { category } = req.query;
-  let sql = 'SELECT * FROM contractors WHERE 1=1';
-  const params = [];
-  if (category) { sql += ' AND category = ?'; params.push(category); }
-  sql += ' ORDER BY sort_order';
+  const userId = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id)?.id;
+  let sql = `
+    SELECT c.*,
+      COALESCE((SELECT AVG(cr.rating) FROM contractor_ratings cr WHERE cr.contractor_id = c.id), c.rating) as avg_rating,
+      (SELECT COUNT(*) FROM contractor_ratings cr WHERE cr.contractor_id = c.id) as rating_count,
+      (SELECT cr.rating FROM contractor_ratings cr WHERE cr.contractor_id = c.id AND cr.user_id = ?) as my_rating
+    FROM contractors c WHERE 1=1
+  `;
+  const params = [userId || 0];
+  if (category) { sql += ' AND c.category = ?'; params.push(category); }
+  sql += ' ORDER BY c.sort_order';
   const contractors = db.prepare(sql).all(...params);
   const categories  = db.prepare('SELECT category, COUNT(*) as cnt FROM contractors GROUP BY category ORDER BY cnt DESC').all();
   res.json({ contractors, categories });
+});
+
+// Оценить подрядчика (1-5 звёзд)
+app.post('/api/contractors/:id/rate', requireAuth, (req, res) => {
+  const userId = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id)?.id;
+  if (!userId) return res.status(404).json({ error: 'user_not_found' });
+  const { rating } = req.body;
+  if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'invalid_rating' });
+  db.prepare(`
+    INSERT INTO contractor_ratings (user_id, contractor_id, rating)
+    VALUES (?, ?, ?)
+    ON CONFLICT(user_id, contractor_id) DO UPDATE SET rating = ?, created_at = datetime('now')
+  `).run(userId, req.params.id, rating, rating);
+  const avg = db.prepare('SELECT AVG(rating) as avg, COUNT(*) as cnt FROM contractor_ratings WHERE contractor_id = ?').get(req.params.id);
+  res.json({ ok: true, avg_rating: Math.round((avg.avg || 0) * 10) / 10, rating_count: avg.cnt });
 });
 
 app.get('/api/me/profile-data', requireAuth, (req, res) => {
@@ -574,6 +596,90 @@ app.listen(PORT, () => {
     console.log('✅ Миграции БД применены');
   } catch(e) {
     console.log('⚠️  Ошибка миграции:', e.message);
+  }
+
+  // Миграция: 6 мини-курсов вместо одного раздела
+  try {
+    const existingMods = db.prepare("SELECT slug FROM modules").all().map(m => m.slug);
+    const COURSE_MODULES = [
+      { slug: 'kurs-obelenie',  title: 'Обеление с нуля',                                  icon: '🛡', sort_order: 8  },
+      { slug: 'kurs-trendy',    title: 'Анализ трендов: как найти Лабубу?',                 icon: '📈', sort_order: 9  },
+      { slug: 'kurs-foto',      title: 'Фотоворонка от первого взгляда до покупки',          icon: '📸', sort_order: 10 },
+      { slug: 'kurs-neuro',     title: 'Новогодний нейроконтент',                            icon: '✨', sort_order: 11 },
+      { slug: 'kurs-godplan',   title: 'Сценарий годового планирования товарного бизнеса',   icon: '📅', sort_order: 12 },
+      { slug: 'kurs-strategiya',title: 'Стратегия продвижения карточки товара',              icon: '⚡', sort_order: 13 },
+    ];
+    for (const mod of COURSE_MODULES) {
+      if (!existingMods.includes(mod.slug)) {
+        db.prepare("INSERT INTO modules (slug, title, icon, sort_order) VALUES (?, ?, ?, ?)").run(mod.slug, mod.title, mod.icon, mod.sort_order);
+        console.log(`✅ Добавлен модуль: ${mod.title}`);
+      }
+    }
+
+    // Переназначение уроков по kinescope ID
+    const getModId = (slug) => db.prepare("SELECT id FROM modules WHERE slug = ?").get(slug)?.id;
+    const LESSON_MOVES = [
+      // Обеление с нуля
+      { id: 'adf1abc5-1837-4ddb-bc15-a11516ef78c5', slug: 'kurs-obelenie',   title: 'Урок 1. Обеляем селлеров' },
+      { id: '2e7f0e9b-92d5-4a0b-8857-b18d33955856', slug: 'kurs-obelenie',   title: 'Урок 2. Основные пути обеления' },
+      { id: '4787affd-1af1-49a2-8152-9bd49a6149b5', slug: 'kurs-obelenie',   title: 'Урок 3. Финансовая модель' },
+      { id: '55ea9d60-b6e6-4300-a83a-cf23f3c33062', slug: 'kurs-obelenie',   title: 'Урок 4. Про сертификацию для ВЭД' },
+      { id: '074f6d44-2c6f-43b0-917d-a3f6f6abdbb7', slug: 'kurs-obelenie',   title: 'Урок 5. Как начать возить в белую' },
+      // Анализ трендов
+      { id: '140c4422-c5d1-4b7b-8448-7d592e297557', slug: 'kurs-trendy',     title: 'Оракул запросов' },
+      { id: '69f5b05a-e629-4c08-a79d-ce35e3a95682', slug: 'kurs-trendy',     title: 'МпСтатс' },
+      { id: 'cb88393a-e69e-47e7-a23c-806e014b140a', slug: 'kurs-trendy',     title: 'Джем' },
+      { id: '745faba6-b317-4af6-982f-6846640cfecc', slug: 'kurs-trendy',     title: 'Google Trends' },
+      { id: 'b13a6c87-383c-425a-85c0-7946a0db4cee', slug: 'kurs-trendy',     title: 'ТикТок тренды' },
+      // Фотоворонка
+      { id: '8b402144-c6ee-45ac-b946-e38c209b8405', slug: 'kurs-foto',       title: 'Урок 1. Первое впечатление' },
+      { id: 'aedac1ae-e64f-4b66-9501-599db21418c6', slug: 'kurs-foto',       title: 'Урок 2. Главное фото' },
+      { id: 'cfd8c3a4-5131-46fa-a161-cced106c8c51', slug: 'kurs-foto',       title: 'Урок 3. Инфографика' },
+      { id: '9e5c9665-5f0d-4025-bc66-9fbdc190be6f', slug: 'kurs-foto',       title: 'Урок 4. Продающий контент' },
+      { id: 'abd8d023-942a-4956-a118-2f3429372b97', slug: 'kurs-foto',       title: 'Урок 5. Видеообложка' },
+      // Новогодний нейроконтент
+      { id: '31d39cd8-3dd4-4ddb-9553-2f904ff06415', slug: 'kurs-neuro',      title: 'Урок 1. Создание изображений' },
+      { id: '304a29c1-b5f5-4b29-b001-e899cc811790', slug: 'kurs-neuro',      title: 'Урок 2. Видео с Sora' },
+      { id: 'cb09f056-8126-48eb-9f13-e93980c59732', slug: 'kurs-neuro',      title: 'Урок 3. Veo-3' },
+      // Годовое планирование
+      { id: '5c40c5c1-9e99-4bea-a048-74d3903ee2b7', slug: 'kurs-godplan',    title: 'Урок 1. Итоги года' },
+      { id: '3a5bce3a-01d1-40b2-a1ff-63f4a62b6b0d', slug: 'kurs-godplan',    title: 'Урок 2. Анализ ниши' },
+      { id: '8d2b2c1d-976b-48d2-ba6f-55d30d2fda29', slug: 'kurs-godplan',    title: 'Урок 3. Цели и метрики' },
+      { id: '2d4afc2f-5022-417c-a29d-a02b75855a11', slug: 'kurs-godplan',    title: 'Урок 4. Финансовый план' },
+      { id: '52725fac-8b44-4c2f-81b5-9902f16775b8', slug: 'kurs-godplan',    title: 'Урок 5. Маркетинг план' },
+      { id: 'a14e2a35-4c16-443f-a3ce-f3219024a7bc', slug: 'kurs-godplan',    title: 'Урок 6. Итоговый план' },
+      // Стратегия продвижения
+      { id: '86c55ebe-86d4-4ddd-9b9e-a6691b0f050e', slug: 'kurs-strategiya', title: 'Урок 1. Сбор ключевых фраз' },
+      { id: '1d652df0-1a29-4ee3-97e9-feab7df4d5dc', slug: 'kurs-strategiya', title: 'Урок 2. Релевантность' },
+      { id: '9632bf4e-7de0-4dbb-b4af-e0ea9962b8f2', slug: 'kurs-strategiya', title: 'Урок 3. Оптимизация РК' },
+      { id: '66d589d6-8a1b-4b47-b4f6-6f02350f9062', slug: 'kurs-strategiya', title: 'Урок 4. Факторы ранжирования' },
+      { id: '8ace80dd-54ee-4f42-8a21-bfcbdf5f7f50', slug: 'kurs-strategiya', title: 'Урок 5. Обзор плагина Evirma' },
+      { id: '3cdff16f-148d-414c-80c9-5f38ed8c7b75', slug: 'kurs-strategiya', title: 'Урок 6. Настройка и оптимизация РК' },
+      { id: '8c8adbe7-c65f-4d6a-968e-5e593b42f3b5', slug: 'kurs-strategiya', title: 'Как правильно запускать новинку. Часть 2' },
+      { id: 'c1b945f3-6647-4748-a2e8-bb1510d28d31', slug: 'kurs-strategiya', title: 'Как правильно запустить новинку на Wildberries. Часть 2' },
+    ];
+    for (const move of LESSON_MOVES) {
+      const modId = getModId(move.slug);
+      if (modId) {
+        db.prepare("UPDATE lessons SET module_id = ?, title = ? WHERE id = ?").run(modId, move.title, move.id);
+      }
+    }
+    // Исправляем плохие названия уроков
+    const NAME_FIXES = [
+      { id: '7621ac59-81cb-4cb4-9403-3aa8b29b84b7', title: 'Эфир от 24.03.2026' },
+      { id: 'e4c33317-abd7-4501-a8e1-756c2256c712', title: 'Эфир от 16.03.2026' },
+      { id: 'ad7a405a-46e5-4337-a7ba-662d0e8f301b', title: 'Офлайн форум по продвижению Max Evirma' },
+      { id: 'ff15a865-e554-4121-91d4-f49a566108b7', title: 'Эфир от 03.12.2025' },
+      { id: 'a098e6aa-195e-47fb-a610-51fb61010108', title: 'Эфир от 23.10.2025' },
+      { id: 'ccb5689f-e3de-4e88-9161-4519de3be0f2', title: 'Разбор от 19.02.2026' },
+      { id: 'e46497a5-fbaa-4fcb-9e1e-2edaf7df729e', title: 'Таблица: анализ рекламы по точкам входа' },
+    ];
+    for (const fix of NAME_FIXES) {
+      db.prepare("UPDATE lessons SET title = ? WHERE id = ?").run(fix.title, fix.id);
+    }
+    console.log('✅ Мини-курсы сгруппированы');
+  } catch(e) {
+    console.log('⚠️  Ошибка миграции курсов:', e.message);
   }
 
   // Авто-импорт при первом запуске если база пустая
