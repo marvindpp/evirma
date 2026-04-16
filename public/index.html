@@ -3524,7 +3524,7 @@ function ContractorModal({ c, onClose, onRate }) {
         h('div', { className: 'contractor-modal-label' }, 'Рейтинг'),
         h('div', { className: 'contractor-modal-rating-row' },
           displayRating > 0 && h('div', { className: 'contractor-modal-avg' }, displayRating),
-          displayRating > 0 && h(Icon.star, { style:{width:22,height:22,fill:'var(--yellow)',color:'var(--yellow)'} }),
+          displayRating > 0 && h('span', { style:{display:'inline-flex',width:22,height:22,color:'var(--yellow)',fill:'var(--yellow)',flexShrink:0} }, h(Icon.star)),
           h('div', { className: 'contractor-modal-cnt' }, ratingCount > 0 ? ratingCount + ' оценок' : 'Нет оценок')
         ),
         h('div', { className: 'contractor-modal-my-label' }, myRating > 0 ? 'Ваша оценка: ' + myRating : 'Оцените подрядчика:'),
@@ -3682,9 +3682,9 @@ function AddEmployeeModal({ user, onClose }) {
         href: payLinks[period],
         target: '_blank',
         rel: 'noopener',
-        style:{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:'var(--accent)',color:'white',borderRadius:12,padding:'14px',textDecoration:'none',fontWeight:700,fontSize:16,transition:'background 0.15s'}
+        style:{display:'flex',alignItems:'center',justifyContent:'center',gap:10,background:'var(--accent)',color:'white',borderRadius:12,padding:'14px 20px',textDecoration:'none',fontWeight:700,fontSize:15,transition:'background 0.15s'}
       },
-        h(Icon.telegram),
+        h('span', { style:{display:'inline-flex',width:20,height:20,flexShrink:0} }, h(Icon.telegram)),
         'Перейти к оплате в Telegram'
       )
     )
@@ -4422,6 +4422,11 @@ function AdminContent({ onDataChange }) {
   const [moduleFilter, setModuleFilter] = useState('all');
   const [selected, setSelected] = useState(new Set());
   const [bulkTarget, setBulkTarget] = useState('');
+  const [userCount, setUserCount] = useState(null);
+
+  useEffect(() => {
+    api.get('/api/counts').then(r => setUserCount(r.students)).catch(() => {});
+  }, []);
   const [savedToast, setSavedToast] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [, forceUpdate] = useState(0);
@@ -4517,7 +4522,7 @@ function AdminContent({ onDataChange }) {
         h(Icon.briefcase), 'Подрядчики', h('span', { className: 'admin-tab-count' }, CONTRACTORS.length)
       ),
       h('button', { className: 'admin-tab ' + (tab === 'students' ? 'active' : ''), onClick: () => setTab('students') },
-        h(Icon.users), 'Участники', h('span', { className: 'admin-tab-count' }, '633')
+        h(Icon.users), 'Участники', h('span', { className: 'admin-tab-count' }, userCount ?? '...')
       )
     ),
 
