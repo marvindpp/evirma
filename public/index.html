@@ -3512,8 +3512,21 @@ function ContractorModal({ c, onClose, onRate }) {
       c.contact && h('div', { className: 'contractor-modal-section' },
         h('div', { className: 'contractor-modal-label' }, 'Контакт'),
         h('div', { className: 'contractor-contact', style:{marginBottom:0} },
-          h(Icon.telegram),
+          h('span', { style:{fontSize:16} }, '📞'),
           h('span', null, c.contact)
+        )
+      ),
+
+      c.website && c.website !== c.contact && h('div', { className: 'contractor-modal-section' },
+        h('div', { className: 'contractor-modal-label' }, 'Сайт / Telegram'),
+        h('div', { className: 'contractor-contact', style:{marginBottom:0} },
+          h('span', { style:{display:'inline-flex',width:20,height:20,flexShrink:0} }, h(Icon.telegram)),
+          h('a', {
+            href: c.website.startsWith('http') ? c.website : 'https://' + c.website,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            style:{ color:'var(--accent)', wordBreak:'break-all' }
+          }, c.website)
         )
       ),
 
@@ -3919,8 +3932,8 @@ function AdminContractors({ onDataChange }) {
     api.get('/api/contractors').then(r => setContractors(r.contractors)).catch(() => {});
   }, []);
 
-  function startNew() { setForm({name:'',category:'',description:'',contact:'',promo_code:'',rating:5}); setEditing('new'); }
-  function startEdit(c) { setForm({...c}); setEditing(c); }
+  function startNew() { setForm({name:'',category:'',description:'',contact:'',website:'',promo_code:''}); setEditing('new'); }
+  function startEdit(c) { setForm({...c, website: c.website || ''}); setEditing(c); }
 
   async function save() {
     setSaving(true);
@@ -3952,7 +3965,7 @@ function AdminContractors({ onDataChange }) {
       h('button', { onClick:()=>setEditing(null), style:{background:'none',border:'none',color:'var(--text-dim)',cursor:'pointer',fontSize:13} }, '← Назад')
     ),
     h('div', { style:{display:'flex',flexDirection:'column',gap:10} },
-      ...[ ['Название', 'name'], ['Категория', 'category'], ['Описание', 'description'], ['Контакт (TG/телефон)', 'contact'], ['Промокод', 'promo_code'] ].map(([label, key]) =>
+      ...[ ['Название', 'name'], ['Категория', 'category'], ['Описание', 'description'], ['Контакт (TG/телефон)', 'contact'], ['Сайт / Telegram ссылка', 'website'], ['Промокод', 'promo_code'] ].map(([label, key]) =>
         h('div', { key },
           h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:4} }, label),
           key === 'description'
@@ -4434,10 +4447,10 @@ function AdminContent({ onDataChange }) {
   const [moduleFilter, setModuleFilter] = useState('all');
   const [selected, setSelected] = useState(new Set());
   const [bulkTarget, setBulkTarget] = useState('');
-  const [userCount, setUserCount] = useState(null);
+  const [adminCounts, setAdminCounts] = useState({ students: null, contractors: null, lessons: null });
 
   useEffect(() => {
-    api.get('/api/counts').then(r => setUserCount(r.students)).catch(() => {});
+    api.get('/api/counts').then(r => setAdminCounts({ students: r.students, contractors: r.contractors, lessons: r.lessons })).catch(() => {});
   }, []);
   const [savedToast, setSavedToast] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -4528,13 +4541,13 @@ function AdminContent({ onDataChange }) {
   return h('div', { className: 'content-wide' },
     h('div', { className: 'admin-tabs' },
       h('button', { className: 'admin-tab ' + (tab === 'lessons' ? 'active' : ''), onClick: () => setTab('lessons') },
-        h(Icon.video), 'Видеоуроки', h('span', { className: 'admin-tab-count' }, LESSONS.length)
+        h(Icon.video), 'Видеоуроки', h('span', { className: 'admin-tab-count' }, adminCounts.lessons ?? LESSONS.length)
       ),
       h('button', { className: 'admin-tab ' + (tab === 'contractors' ? 'active' : ''), onClick: () => setTab('contractors') },
-        h(Icon.briefcase), 'Подрядчики', h('span', { className: 'admin-tab-count' }, CONTRACTORS.length)
+        h(Icon.briefcase), 'Подрядчики', h('span', { className: 'admin-tab-count' }, adminCounts.contractors ?? CONTRACTORS.length)
       ),
       h('button', { className: 'admin-tab ' + (tab === 'students' ? 'active' : ''), onClick: () => setTab('students') },
-        h(Icon.users), 'Участники', h('span', { className: 'admin-tab-count' }, userCount ?? '...')
+        h(Icon.users), 'Участники', h('span', { className: 'admin-tab-count' }, adminCounts.students ?? '...')
       )
     ),
 
