@@ -383,7 +383,7 @@ app.get('/api/contractors', requireAuth, (req, res) => {
   const userId = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id)?.id;
   let sql = `
     SELECT c.*,
-      COALESCE((SELECT AVG(cr.rating) FROM contractor_ratings cr WHERE cr.contractor_id = c.id), c.rating) as avg_rating,
+      (SELECT ROUND(AVG(cr.rating), 1) FROM contractor_ratings cr WHERE cr.contractor_id = c.id) as avg_rating,
       (SELECT COUNT(*) FROM contractor_ratings cr WHERE cr.contractor_id = c.id) as rating_count,
       (SELECT cr.rating FROM contractor_ratings cr WHERE cr.contractor_id = c.id AND cr.user_id = ?) as my_rating
     FROM contractors c WHERE 1=1
@@ -400,8 +400,8 @@ app.get('/api/contractors', requireAuth, (req, res) => {
 app.post('/api/contractors/:id/rate', requireAuth, (req, res) => {
   const userId = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id)?.id;
   if (!userId) return res.status(404).json({ error: 'user_not_found' });
-  const { rating } = req.body;
-  if (!rating || rating < 1 || rating > 5) return res.status(400).json({ error: 'invalid_rating' });
+  const rating = Number(req.body.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) return res.status(400).json({ error: 'invalid_rating' });
   db.prepare(`
     INSERT INTO contractor_ratings (user_id, contractor_id, rating)
     VALUES (?, ?, ?)
