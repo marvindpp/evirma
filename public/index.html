@@ -3505,8 +3505,8 @@ function ContractorModal({ c, onClose, onRate }) {
       ),
 
       (c.description || c.desc) && h('div', { className: 'contractor-modal-section' },
-        h('div', { className: 'contractor-modal-label' }, 'Описание'),
-        h('div', { className: 'contractor-modal-text' }, c.description || c.desc)
+        h('div', { className: 'contractor-modal-label' }, 'Причина рекомендации'),
+        h('div', { className: 'contractor-modal-text', style:{whiteSpace:'pre-line'} }, c.description || c.desc)
       ),
 
       c.contact && h('div', { className: 'contractor-modal-section' },
@@ -3955,6 +3955,7 @@ function AdminContractors({ onDataChange }) {
     if (!confirm('Удалить подрядчика?')) return;
     await api.delete('/api/admin/contractors/' + id);
     setContractors(c => c.filter(x => x.id !== id));
+    onDataChange && onDataChange();
   }
 
   const inputStyle = {width:'100%',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:13,boxSizing:'border-box',fontFamily:'inherit'};
@@ -3972,10 +3973,6 @@ function AdminContractors({ onDataChange }) {
             ? h('textarea', { style:{...inputStyle,resize:'vertical',minHeight:60}, value:form[key]||'', onChange:e=>setForm(f=>({...f,[key]:e.target.value})) })
             : h('input', { style:inputStyle, value:form[key]||'', onChange:e=>setForm(f=>({...f,[key]:e.target.value})) })
         )
-      ),
-      h('div', null,
-        h('div', { style:{fontSize:12,color:'var(--text-dim)',marginBottom:4} }, 'Рейтинг (0-5)'),
-        h('input', { type:'number', min:0, max:5, step:0.1, style:{...inputStyle,width:100}, value:form.rating||0, onChange:e=>setForm(f=>({...f,rating:parseFloat(e.target.value)})) })
       ),
       h('button', { onClick:save, disabled:saving, style:{padding:'10px',borderRadius:8,background:'var(--accent)',color:'white',border:'none',cursor:'pointer',fontSize:14,fontWeight:600} },
         saving ? 'Сохранение...' : 'Сохранить'
@@ -4961,7 +4958,7 @@ function App() {
     dashboard: { title: 'Главная', sub: 'Обзор активности в клубе' },
     knowledge: { title: 'База знаний', sub: LESSONS.length + ' уроков в ' + MODULES.length + ' разделах' },
     students:  { title: 'Участники клуба', sub: 'База участников' },
-    contractors: { title: 'Проверенные подрядчики', sub: CONTRACTORS.length + ' партнёров с промокодами' },
+    contractors: { title: 'Проверенные подрядчики', sub: (navCounts?.contractors ?? CONTRACTORS.length) + ' партнёров' },
     profile:   { title: 'Мой профиль', sub: 'Анкета и управление подпиской' },
     admin:     { title: 'Управление платформой', sub: 'Контент, подрядчики и участники' },
   };
@@ -4998,7 +4995,7 @@ function App() {
       onPrev: (l) => setCurrentLesson(l),
     });
   } else if (page === 'admin' && role === 'admin') {
-    pageContent = h(AdminContent, { onDataChange: () => setDataVersion(v => v + 1) });
+    pageContent = h(AdminContent, { onDataChange: () => { setDataVersion(v => v + 1); fetchCounts(); } });
   } else if (page === 'dashboard') {
     pageContent = h(Dashboard, { onNavigate: setPage, onLessonClick: setCurrentLesson, user, key: 'dash-' + dataVersion });
   } else if (page === 'knowledge') {
