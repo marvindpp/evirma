@@ -704,10 +704,11 @@ app.listen(PORT, () => {
     console.log('⚠️  Ошибка авто-импорта:', e.message);
   }
 
-  // Авто-сид подрядчиков: если меньше 10 — загружаем полную базу
+  // Авто-сид подрядчиков: запускаем если нет MPSTATS с правильным промокодом
   try {
-    const cntRow = db.prepare('SELECT COUNT(*) as cnt FROM contractors').get();
-    if (cntRow.cnt < 10) {
+    const mpstats = db.prepare("SELECT id FROM contractors WHERE name='MPSTATS' AND promo_code='maxevirmaclub'").get();
+    const cntRow  = db.prepare('SELECT COUNT(*) as cnt FROM contractors').get();
+    if (!mpstats) {
       console.log(`📦 Подрядчиков в БД: ${cntRow.cnt} — запускаю сид...`);
       const SEED = [
         { name:'Wildcrm', category:'Финансовый учет', contact:'https://t.me/wildcrm_bot?start=ref_871e22ee2db69c697853e4c2066bb090', website:'https://t.me/wildcrm_bot?start=ref_871e22ee2db69c697853e4c2066bb090', promo_code:'Max Evirma', description:'Облачный сервис для оцифровки бизнеса на Wildberries.\n\nЧтобы получить бонусные баллы:\n1. Зарегистрируйтесь по реферальной ссылке\n2. Напишите в поддержку "Max Evirma"\n\n400 бонусных баллов + 3 пробных дня на весь функционал.', sort_order:1 },
