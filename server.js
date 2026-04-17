@@ -396,19 +396,26 @@ app.get('/api/contractors', requireAuth, (req, res) => {
   res.json({ contractors, categories });
 });
 
-// Оценить подрядчика (1-5 звёзд)
+// Оценить подрядчика (1-5 звёзд) — 1 оценка на пользователя, можно менять
 app.post('/api/contractors/:id/rate', requireAuth, (req, res) => {
-  const userId = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id)?.id;
-  if (!userId) return res.status(404).json({ error: 'user_not_found' });
-  const rating = Number(req.body.rating);
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) return res.status(400).json({ error: 'invalid_rating' });
-  db.prepare(`
-    INSERT INTO contractor_ratings (user_id, contractor_id, rating)
-    VALUES (?, ?, ?)
-    ON CONFLICT(user_id, contractor_id) DO UPDATE SET rating = ?, created_at = datetime('now')
-  `).run(userId, req.params.id, rating, rating);
-  const avg = db.prepare('SELECT AVG(rating) as avg, COUNT(*) as cnt FROM contractor_ratings WHERE contractor_id = ?').get(req.params.id);
-  res.json({ ok: true, avg_rating: Math.round((avg.avg || 0) * 10) / 10, rating_count: avg.cnt });
+  try {
+    const userId = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id)?.id;
+    if (!userId) return res.status(404).json({ error: 'user_not_found' });
+    const rating = Number(req.body.rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5)
+      return res.status(400).json({ error: 'invalid_rating' });
+    // UPSERT: каждый пользователь может иметь только 1 оценку на подрядчика (меняется при повторном клике)
+    db.prepare(`
+      INSERT INTO contractor_ratings (user_id, contractor_id, rating)
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id, contractor_id) DO UPDATE SET rating = excluded.rating, created_at = datetime('now')
+    `).run(userId, req.params.id, rating);
+    const avg = db.prepare('SELECT AVG(rating) as avg, COUNT(*) as cnt FROM contractor_ratings WHERE contractor_id = ?').get(req.params.id);
+    res.json({ ok: true, avg_rating: Math.round((avg.avg || 0) * 10) / 10, rating_count: avg.cnt });
+  } catch (e) {
+    console.error('❌ /rate error:', e.message);
+    res.status(500).json({ error: 'server_error', detail: e.message });
+  }
 });
 
 app.get('/api/me/profile-data', requireAuth, (req, res) => {
@@ -562,14 +569,14 @@ app.patch('/api/admin/lessons/bulk-move', requireAuth, requireAdmin, (req, res) 
 
 // ── ADMIN: управление подрядчиками ──
 app.post('/api/admin/contractors', requireAuth, requireAdmin, (req, res) => {
-  const { name, category, description, contact, promo_code, rating } = req.body;
-  const r = db.prepare('INSERT INTO contractors (name, category, description, contact, promo_code, rating) VALUES (?, ?, ?, ?, ?, ?)').run(name, category, description || '', contact || '', promo_code || '', rating || 0);
+  const { name, category, description, contact, website, promo_code } = req.body;
+  const r = db.prepare('INSERT INTO contractors (name, category, description, contact, website, promo_code) VALUES (?, ?, ?, ?, ?, ?)').run(name, category, description || '', contact || '', website || '', promo_code || '');
   res.json({ ok: true, id: r.lastInsertRowid });
 });
 
 app.patch('/api/admin/contractors/:id', requireAuth, requireAdmin, (req, res) => {
-  const { name, category, description, contact, promo_code, rating } = req.body;
-  db.prepare('UPDATE contractors SET name=?, category=?, description=?, contact=?, promo_code=?, rating=? WHERE id=?').run(name, category, description, contact, promo_code, rating, req.params.id);
+  const { name, category, description, contact, website, promo_code } = req.body;
+  db.prepare('UPDATE contractors SET name=?, category=?, description=?, contact=?, website=?, promo_code=? WHERE id=?').run(name, category, description, contact, website || '', promo_code, req.params.id);
   res.json({ ok: true });
 });
 

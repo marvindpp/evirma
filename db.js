@@ -101,14 +101,37 @@ function initSchema(db) {
       first_name    TEXT,
       added_at      TEXT    DEFAULT (datetime('now'))
     );
+
+    -- Оценки подрядчиков от пользователей
+    CREATE TABLE IF NOT EXISTS contractor_ratings (
+      user_id        INTEGER REFERENCES users(id),
+      contractor_id  INTEGER REFERENCES contractors(id),
+      rating         INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+      created_at     TEXT    DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, contractor_id)
+    );
   `);
 
   // Миграция: добавляем active_token если колонки нет
   try {
     db.exec("ALTER TABLE users ADD COLUMN active_token TEXT");
-  } catch(e) {
-    // Колонка уже есть — игнорируем
-  }
+  } catch(e) { /* already exists */ }
+
+  // Миграция: contractor_ratings (могла не создаться на старых БД)
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS contractor_ratings (
+      user_id        INTEGER,
+      contractor_id  INTEGER,
+      rating         INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+      created_at     TEXT    DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, contractor_id)
+    )`);
+  } catch(e) { console.log('contractor_ratings migration:', e.message); }
+
+  // Миграция: добавляем website в contractors
+  try {
+    db.exec("ALTER TABLE contractors ADD COLUMN website TEXT DEFAULT ''");
+  } catch(e) { /* already exists */ }
 }
 
 module.exports = { getDb };
