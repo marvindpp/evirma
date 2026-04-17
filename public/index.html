@@ -3455,11 +3455,13 @@ function StudentsBase() {
 
 // ===== CONTRACTORS =====
 function ContractorModal({ c, onClose, onRate }) {
-  const [hovered,  setHovered]  = useState(0);
-  const [myRating, setMyRating] = useState(c.my_rating || 0);
-  const [avgRating, setAvgRating] = useState(c.avg_rating || c.rating || 0);
-  const [ratingCount, setRatingCount] = useState(c.rating_count || 0);
-  const [copied,   setCopied]   = useState(false);
+  const [hovered,    setHovered]    = useState(0);
+  const [myRating,   setMyRating]   = useState(c.my_rating || 0);
+  const [avgRating,  setAvgRating]  = useState(c.avg_rating || 0);
+  const [ratingCount,setRatingCount]= useState(c.rating_count || 0);
+  const [copied,     setCopied]     = useState(false);
+  const [rateSaved,  setRateSaved]  = useState(false);
+  const [rateErr,    setRateErr]    = useState('');
 
   function copyPromo(code) {
     navigator.clipboard?.writeText(code);
@@ -3468,12 +3470,20 @@ function ContractorModal({ c, onClose, onRate }) {
 
   async function handleRate(stars) {
     setMyRating(stars);
+    setRateSaved(false);
+    setRateErr('');
     try {
       const res = await api.post('/api/contractors/' + c.id + '/rate', { rating: stars });
-      setAvgRating(res.avg_rating);
-      setRatingCount(res.rating_count);
+      setAvgRating(res.avg_rating || 0);
+      setRatingCount(res.rating_count || 0);
+      setRateSaved(true);
+      setTimeout(() => setRateSaved(false), 2000);
       onRate && onRate(c.id, res.avg_rating, res.rating_count, stars);
-    } catch(e) {}
+    } catch(e) {
+      console.error('Rate save failed:', e);
+      setRateErr('Не удалось сохранить оценку');
+      setTimeout(() => setRateErr(''), 3000);
+    }
   }
 
   useEffect(() => {
@@ -3538,7 +3548,9 @@ function ContractorModal({ c, onClose, onRate }) {
               onClick: () => handleRate(n)
             }, '★')
           )
-        )
+        ),
+        rateSaved && h('div', { style:{fontSize:12,color:'#4caf50',marginTop:6} }, '✓ Оценка сохранена'),
+        rateErr   && h('div', { style:{fontSize:12,color:'#f44336',marginTop:6} }, rateErr)
       )
     )
   );
@@ -3584,8 +3596,8 @@ function ContractorsBase() {
 
     h('div', { className: 'contractors-grid' },
       ...filtered.map(c => {
-        const avg = c.avg_rating || c.rating || 0;
-        const displayAvg = Math.round(avg * 10) / 10;
+        const avg = c.avg_rating || 0;
+        const displayAvg = avg > 0 ? Math.round(avg * 10) / 10 : 0;
         const desc = c.description || c.desc || '';
         return h('div', { key: c.id, className: 'contractor-card', onClick: () => setSelected(c) },
           h('div', { className: 'contractor-head' },
