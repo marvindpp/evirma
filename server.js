@@ -131,11 +131,20 @@ async function checkSubscription(telegramId) {
   try {
     const r   = await fetch(`${SUB_URL}?telegram_id=${telegramId}`, { signal: AbortSignal.timeout(5000) });
     const sub = await r.json();
-    return { active: !!sub.result, message: sub.message_result || null };
+    const msg = sub.message_result || null;
+    // Парсим дату окончания из сообщения, если она есть (формат DD.MM.YYYY)
+    let days = sub.days_left || sub.days || null;
+    if (!days && msg) {
+      const dateMatch = msg.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+      if (dateMatch) {
+        const end = new Date(dateMatch[3], dateMatch[2] - 1, dateMatch[1]);
+        days = Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+      }
+    }
+    return { active: !!sub.result, message: msg, days };
   } catch {
-    // Если вебхук недоступен — пропускаем, не блокируем пользователя
     console.warn('⚠️  checkSubscription failed for', telegramId, '— пропускаем');
-    return { active: true, message: null };
+    return { active: true, message: null, days: null };
   }
 }
 
@@ -251,6 +260,7 @@ app.get('/api/me', requireAuth, (req, res) => {
 
 app.get('/api/me/subscription', requireAuth, async (req, res) => {
   if (DEV_MODE) return res.json({ active: true, message: 'Dev режим — подписка активна' });
+  if (ADMIN_IDS.has(String(req.user.telegram_id))) return res.json({ active: true, message: 'Администратор' });
   const sub = await checkSubscription(req.user.telegram_id);
   res.json(sub);
 });
