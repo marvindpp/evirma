@@ -883,80 +883,143 @@
   /* ===== STUDENTS GRID ===== */
   .students-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.25rem;
   }
   .student-card {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.25rem;
+    border-radius: 20px;
+    padding: 1.5rem 1.25rem 1.25rem;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.18s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0;
+    position: relative;
   }
   .student-card:hover {
     border-color: var(--accent-border);
-    transform: translateY(-2px);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     background: var(--bg3);
   }
-  .student-head { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
-  .student-avatar {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #2a1a10, var(--bg4));
-    border: 1px solid var(--border2);
+  .student-role-badges {
     display: flex;
-    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
     justify-content: center;
-    font-size: 17px;
-    font-weight: 800;
-    color: var(--accent);
-    flex-shrink: 0;
+    margin-bottom: 14px;
+    min-height: 20px;
   }
-  .student-head-info { flex: 1; min-width: 0; }
-  .student-name { font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px; }
   .student-role-tag {
     display: inline-block;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     color: var(--text2);
     background: var(--bg4);
-    padding: 2px 7px;
+    padding: 3px 8px;
     border-radius: 5px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-top: 3px;
+    letter-spacing: 0.6px;
   }
-  .student-role-tag.seller { color: var(--accent); background: var(--accent-dim); }
-  .student-details { display: flex; flex-direction: column; gap: 6px; margin-bottom: 1rem; }
-  .student-detail-row {
+  .student-role-tag.seller  { color: var(--accent); background: var(--accent-dim); }
+  .student-role-tag.manager { color: #64b5f6; background: rgba(100,181,246,0.12); }
+  .student-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2a1a10, var(--bg4));
+    border: 2px solid var(--border2);
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-bottom: 12px;
+    object-fit: cover;
+  }
+  .student-name {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .student-revenue {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  .student-city {
     font-size: 12px;
     color: var(--text2);
-    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 14px;
   }
-  .student-detail-row svg { width: 13px; height: 13px; color: var(--text3); flex-shrink: 0; }
-  .student-detail-row strong { color: var(--text); font-weight: 700; }
+  .student-city svg { width: 11px; height: 11px; flex-shrink: 0; }
+  .student-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: 100%;
+    margin-top: auto;
+  }
+  .student-btn-profile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 9px;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    text-decoration: none;
+  }
+  .student-btn-profile:hover { opacity: 0.85; }
   .student-tg-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    background: var(--bg3);
+    background: rgba(255,255,255,0.06);
     border: 1px solid var(--border2);
     border-radius: 10px;
-    padding: 0.6rem;
+    padding: 9px;
     font-size: 12px;
     font-weight: 700;
     color: var(--text);
+    cursor: pointer;
     transition: all 0.15s;
+    text-decoration: none;
   }
-  .student-tg-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
-  .student-tg-btn svg { width: 13px; height: 13px; }
+  .student-tg-btn:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: white; }
+  .student-tg-btn:disabled { opacity: 0.4; cursor: default; }
+  .student-tg-btn svg, .student-btn-profile svg { width: 13px; height: 13px; }
+  /* старые классы для совместимости */
+  .student-head { display: none; }
+  .student-details { display: none; }
+  .student-head-info { display: none; }
+  .student-detail-row { display: none; }
 
   /* ===== CONTRACTORS ===== */
   .contractors-categories {
@@ -1416,8 +1479,11 @@
     .lesson-status { padding: 4px 8px; font-size: 10px; }
     .lesson-card:hover { transform: none; }
 
-    .students-grid { grid-template-columns: 1fr; gap: 0.75rem; }
-    .student-card { padding: 1rem; }
+    .students-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    .student-card { padding: 1rem 0.85rem; }
+    .student-avatar { width: 64px; height: 64px; font-size: 20px; }
+    .student-name { font-size: 13px; }
+    .student-revenue { font-size: 15px; }
     .contractors-grid { grid-template-columns: 1fr; gap: 0.75rem; }
     .contractor-card { padding: 1rem; }
 
@@ -2950,8 +3016,8 @@ function Dashboard({ onNavigate, onLessonClick, user }) {
   const pct       = progress?.percent ?? 0;
   const totalHours = Math.round(LESSONS.reduce((a,l)=>a+(l.duration_sec||0),0)/3600);
 
-  // Парсим дни из сообщения подписки
-  const subDays = sub?.message ? (sub.message.match(/\d+/) || ['?'])[0] : '?';
+  // Дни подписки — берём явное поле days или парсим из сообщения
+  const subDays = sub?.days != null ? String(sub.days) : (sub?.message ? (sub.message.match(/\d+/) || ['?'])[0] : '?');
 
   return h('div', { className: 'content-wide' },
     h('div', { className: 'hero-card' },
@@ -3420,25 +3486,36 @@ function StudentsBase() {
           )
         : h('div', { className: 'students-grid' },
             ...students.map(student =>
-              h('div', { key: student.id, className: 'student-card', onClick: () => setActiveStudent(student) },
-                h('div', { className: 'student-head' },
-                  student.photo_url
-                  ? h('img', { src: student.photo_url, className: 'student-avatar', style:{objectFit:'cover'}, onError: e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; } })
-                  : null,
-                !student.photo_url && h('div', { className: 'student-avatar', style: avatarStyle(student.id) }, student.initials),
-                  h('div', { className: 'student-head-info' },
-                    h('div', { className: 'student-name' }, student.name),
-                    student.revenue !== '—' && h('div', { className: 'student-role-tag seller' }, student.revenue)
-                  )
+              h('div', { key: student.id, className: 'student-card' },
+                // Роль-бейджи
+                h('div', { className: 'student-role-badges' },
+                  student.nisha !== '—' && h('span', { className: 'student-role-tag seller' }, student.nisha)
                 ),
-                h('div', { className: 'student-details' },
-                  h('div', { className: 'student-detail-row' }, h(Icon.mapPin), h('span', null, student.city)),
-                  student.nisha !== '—' && h('div', { className: 'student-detail-row' }, h(Icon.briefcase), h('span', null, 'Ниша: ', h('strong', null, student.nisha))),
-                  student.goal && h('div', { className: 'student-detail-row student-detail-multiline' }, h(Icon.target), h('span', null, student.goal))
-                ),
-                student.handle
-                  ? h('a', { className:'student-tg-btn', href:'https://t.me/'+student.handle.replace('@',''), target:'_blank', rel:'noopener', onClick: e => e.stopPropagation() }, h(Icon.telegram), 'Написать в Telegram')
-                  : h('button', { className:'student-tg-btn', disabled:true, onClick: e => e.stopPropagation() }, h(Icon.telegram), 'Контакт скрыт')
+                // Аватар
+                student.photo_url
+                  ? h('img', { src: student.photo_url, className: 'student-avatar', onError: e => { e.target.style.display='none'; } })
+                  : h('div', { className: 'student-avatar', style: avatarStyle(student.id) }, student.initials),
+                // Имя
+                h('div', { className: 'student-name' }, student.name),
+                // Выручка
+                student.revenue !== '—' && h('div', { className: 'student-revenue' }, student.revenue + '/мес'),
+                // Город
+                student.city !== '—' && h('div', { className: 'student-city' }, h(Icon.mapPin), student.city),
+                // Кнопки
+                h('div', { className: 'student-btns' },
+                  h('button', {
+                    className: 'student-btn-profile',
+                    onClick: () => setActiveStudent(student)
+                  }, 'Открыть профиль'),
+                  student.handle
+                    ? h('a', {
+                        className: 'student-tg-btn',
+                        href: 'https://t.me/' + student.handle.replace('@',''),
+                        target: '_blank', rel: 'noopener',
+                        onClick: e => e.stopPropagation()
+                      }, h(Icon.telegram), 'Написать в ТГ')
+                    : h('button', { className:'student-tg-btn', disabled:true }, h(Icon.telegram), 'Контакт скрыт')
+                )
               )
             )
           ),
