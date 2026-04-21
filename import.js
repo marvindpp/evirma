@@ -24,7 +24,7 @@ if (fs.existsSync(contentPath)) {
   for (const l of content.lessons) insL.run(
     l.id, l.cms_id||'', l.title, l.description||'', l.content_html||'', l.content_text||'',
     l.module_id, l.duration, l.duration_sec||0, l.embed_url, l.video_url||'',
-    l.poster||l.poster_url||l.cover_url||'', l.cover_url||'',
+    l.poster||l.poster_url||l.cover_url||'', l.cover_url||l.cover_path||'',
     l.created_at, l.published_at||'', l.status||'published', l.views||0, l.order_in_module||0
   );
   console.log('✅ ' + content.modules.length + ' разделов, ' + content.lessons.length + ' уроков');

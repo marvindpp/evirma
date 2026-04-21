@@ -5,6 +5,7 @@ const express = require('express');
 const cors    = require('cors');
 const crypto  = require('crypto');
 const path    = require('path');
+const fs      = require('fs');
 const { getDb } = require('./db.js');
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
@@ -269,7 +270,7 @@ app.get('/api/me/subscription', requireAuth, async (req, res) => {
 app.get('/api/modules', requireAuth, (req, res) => {
   const modules = db.prepare('SELECT * FROM modules ORDER BY sort_order').all();
   // Добавляем счётчик уроков к каждому разделу
-  const counts = db.prepare('SELECT module_id, COUNT(*) as cnt FROM lessons WHERE hidden = 0 GROUP BY module_id').all();
+  const counts = db.prepare('SELECT module_id, COUNT(*) as cnt FROM lessons GROUP BY module_id').all();
   const countMap = Object.fromEntries(counts.map(c => [c.module_id, c.cnt]));
   const withCounts = modules.map(m => ({ ...m, lesson_count: countMap[m.id] || 0 }));
   res.json({ modules: withCounts });
@@ -278,7 +279,7 @@ app.get('/api/modules', requireAuth, (req, res) => {
 // ── УРОКИ ──
 app.get('/api/lessons', requireAuth, (req, res) => {
   const { module_id, search } = req.query;
-  let sql = 'SELECT l.*, lp.watched, lp.watched_at FROM lessons l LEFT JOIN lesson_progress lp ON l.id = lp.lesson_id AND lp.user_id = (SELECT id FROM users WHERE telegram_id = ?) WHERE l.hidden = 0';
+  let sql = 'SELECT l.*, lp.watched, lp.watched_at FROM lessons l LEFT JOIN lesson_progress lp ON l.id = lp.lesson_id AND lp.user_id = (SELECT id FROM users WHERE telegram_id = ?) WHERE 1=1';
   const params = [req.user.telegram_id];
 
   if (module_id) { sql += ' AND l.module_id = ?'; params.push(module_id); }
@@ -316,14 +317,14 @@ app.get('/api/me/progress', requireAuth, (req, res) => {
   const userId = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id)?.id;
   if (!userId) return res.json({ watched: 0, total: 0, percent: 0 });
 
-  const total   = db.prepare('SELECT COUNT(*) as cnt FROM lessons WHERE hidden = 0').get().cnt;
+  const total   = db.prepare('SELECT COUNT(*) as cnt FROM lessons').get().cnt;
   const watched = db.prepare('SELECT COUNT(*) as cnt FROM lesson_progress WHERE user_id = ? AND watched = 1').get(userId).cnt;
   const byModule = db.prepare(`
     SELECT m.id, m.title, m.icon,
            COUNT(l.id) as total,
            SUM(CASE WHEN lp.watched = 1 THEN 1 ELSE 0 END) as watched
     FROM modules m
-    LEFT JOIN lessons l ON l.module_id = m.id AND l.hidden = 0
+    LEFT JOIN lessons l ON l.module_id = m.id
     LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id AND lp.user_id = ?
     GROUP BY m.id
     ORDER BY m.sort_order
@@ -647,7 +648,7 @@ app.post('/api/admin/lessons', requireAuth, requireAdmin, (req, res) => {
 
 // Обновить урок
 app.patch('/api/admin/lessons/:id', requireAuth, requireAdmin, (req, res) => {
-  const { title, module_id, description, content_html, content_text, files, hidden } = req.body;
+  const { title, module_id, description, content_html, content_text, files } = req.body;
   const updates = [];
   const params  = [];
   if (title !== undefined)        { updates.push('title = ?');        params.push(title); }
@@ -656,7 +657,6 @@ app.patch('/api/admin/lessons/:id', requireAuth, requireAdmin, (req, res) => {
   if (content_html !== undefined) { updates.push('content_html = ?'); params.push(content_html); }
   if (content_text !== undefined) { updates.push('content_text = ?'); params.push(content_text); }
   if (files !== undefined)        { updates.push('files = ?');        params.push(JSON.stringify(files)); }
-  if (hidden !== undefined)       { updates.push('hidden = ?');       params.push(hidden ? 1 : 0); }
   if (!updates.length) return res.status(400).json({ error: 'nothing_to_update' });
   params.push(req.params.id);
   db.prepare(`UPDATE lessons SET ${updates.join(', ')} WHERE id = ?`).run(...params);
