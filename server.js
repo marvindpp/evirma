@@ -269,7 +269,7 @@ app.get('/api/me/subscription', requireAuth, async (req, res) => {
 app.get('/api/modules', requireAuth, (req, res) => {
   const modules = db.prepare('SELECT * FROM modules ORDER BY sort_order').all();
   // Добавляем счётчик уроков к каждому разделу
-  const counts = db.prepare('SELECT module_id, COUNT(*) as cnt FROM lessons GROUP BY module_id').all();
+  const counts = db.prepare('SELECT module_id, COUNT(*) as cnt FROM lessons WHERE hidden = 0 GROUP BY module_id').all();
   const countMap = Object.fromEntries(counts.map(c => [c.module_id, c.cnt]));
   const withCounts = modules.map(m => ({ ...m, lesson_count: countMap[m.id] || 0 }));
   res.json({ modules: withCounts });
@@ -316,14 +316,14 @@ app.get('/api/me/progress', requireAuth, (req, res) => {
   const userId = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id)?.id;
   if (!userId) return res.json({ watched: 0, total: 0, percent: 0 });
 
-  const total   = db.prepare('SELECT COUNT(*) as cnt FROM lessons').get().cnt;
+  const total   = db.prepare('SELECT COUNT(*) as cnt FROM lessons WHERE hidden = 0').get().cnt;
   const watched = db.prepare('SELECT COUNT(*) as cnt FROM lesson_progress WHERE user_id = ? AND watched = 1').get(userId).cnt;
   const byModule = db.prepare(`
     SELECT m.id, m.title, m.icon,
            COUNT(l.id) as total,
            SUM(CASE WHEN lp.watched = 1 THEN 1 ELSE 0 END) as watched
     FROM modules m
-    LEFT JOIN lessons l ON l.module_id = m.id
+    LEFT JOIN lessons l ON l.module_id = m.id AND l.hidden = 0
     LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id AND lp.user_id = ?
     GROUP BY m.id
     ORDER BY m.sort_order
@@ -647,14 +647,16 @@ app.post('/api/admin/lessons', requireAuth, requireAdmin, (req, res) => {
 
 // Обновить урок
 app.patch('/api/admin/lessons/:id', requireAuth, requireAdmin, (req, res) => {
-  const { title, module_id, description, files, hidden } = req.body;
+  const { title, module_id, description, content_html, content_text, files, hidden } = req.body;
   const updates = [];
   const params  = [];
-  if (title !== undefined)       { updates.push('title = ?');       params.push(title); }
-  if (module_id !== undefined)   { updates.push('module_id = ?');   params.push(module_id); }
-  if (description !== undefined) { updates.push('description = ?'); params.push(description); }
-  if (files !== undefined)       { updates.push('files = ?');       params.push(JSON.stringify(files)); }
-  if (hidden !== undefined)      { updates.push('hidden = ?');      params.push(hidden ? 1 : 0); }
+  if (title !== undefined)        { updates.push('title = ?');        params.push(title); }
+  if (module_id !== undefined)    { updates.push('module_id = ?');    params.push(module_id); }
+  if (description !== undefined)  { updates.push('description = ?');  params.push(description); }
+  if (content_html !== undefined) { updates.push('content_html = ?'); params.push(content_html); }
+  if (content_text !== undefined) { updates.push('content_text = ?'); params.push(content_text); }
+  if (files !== undefined)        { updates.push('files = ?');        params.push(JSON.stringify(files)); }
+  if (hidden !== undefined)       { updates.push('hidden = ?');       params.push(hidden ? 1 : 0); }
   if (!updates.length) return res.status(400).json({ error: 'nothing_to_update' });
   params.push(req.params.id);
   db.prepare(`UPDATE lessons SET ${updates.join(', ')} WHERE id = ?`).run(...params);
@@ -805,10 +807,10 @@ app.listen(PORT, () => {
   try {
     const lessonCount = db.prepare('SELECT COUNT(*) as cnt FROM lessons').get().cnt;
     if (lessonCount === 0) {
-      console.log('📦 База пустая — запускаю импорт...');
+      console.log('📦 База пустая — запускаю импорт контента (пользователи не затрагиваются)...');
       require('./import.js');
     } else {
-      console.log(`✅ База: ${lessonCount} уроков, импорт не нужен`);
+      console.log(`✅ База: ${lessonCount} уроков, ${db.prepare('SELECT COUNT(*) as cnt FROM users').get().cnt} пользователей`);
     }
   } catch(e) {
     console.log('⚠️  Ошибка авто-импорта:', e.message);

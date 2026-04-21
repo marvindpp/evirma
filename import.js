@@ -6,7 +6,8 @@ const fs   = require('fs');
 const db = getDb();
 
 if (process.env.RESET_DB === '1') {
-  console.log('🗑  Очищаю таблицы...');
+  console.log('🗑  Очищаю контент (users и employee_orders сохраняются)...');
+  // НЕ трогаем: users, employee_orders — там сессии и история платежей
   db.exec('DELETE FROM lesson_progress; DELETE FROM lessons; DELETE FROM modules; DELETE FROM students; DELETE FROM contractors; DELETE FROM employees;');
 }
 
