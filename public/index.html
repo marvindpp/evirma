@@ -765,6 +765,11 @@
   .player-desc { font-size: 14px; color: var(--text); line-height: 1.7; }
   .player-desc p { margin-bottom: 0.75rem; }
   .player-desc p:last-child { margin-bottom: 0; }
+  .lesson-content-html { font-size: 14px; color: var(--text2); line-height: 1.8; }
+  .lesson-content-html strong { color: var(--text); }
+  .lesson-content-html br { display: block; content: ''; margin-bottom: 4px; }
+  .lesson-content-html a { color: var(--accent); text-decoration: none; }
+  .lesson-content-html a:hover { text-decoration: underline; }
 
   .timecodes-list { display: flex; flex-direction: column; gap: 0.4rem; }
   .timecode-item {
@@ -3261,9 +3266,13 @@ function LessonPlayer({ lesson, onBack, onComplete, onNext, onPrev }) {
       )
     ),
 
-    lesson.description && h('div', { className: 'player-section' },
+    (lesson.description || lesson.content_html) && h('div', { className: 'player-section' },
       h('div', { className: 'player-section-title' }, 'Описание'),
-      h('div', { style:{fontSize:14,color:'var(--text2)',lineHeight:1.7,whiteSpace:'pre-wrap'} }, lesson.description)
+      lesson.description && h('div', { style:{fontSize:14,color:'var(--text2)',lineHeight:1.7,whiteSpace:'pre-wrap',marginBottom: lesson.content_html ? '12px' : 0} }, lesson.description),
+      lesson.content_html && h('div', {
+        className: 'lesson-content-html',
+        dangerouslySetInnerHTML: { __html: lesson.content_html }
+      })
     ),
 
     lesson.files && lesson.files.length > 0 && h('div', { className: 'player-section' },
@@ -3713,23 +3722,39 @@ function ContractorsBase() {
 }
 
 // ===== ADD EMPLOYEE MODAL =====
-function AddEmployeeModal({ user, onClose }) {
-  const [period,  setPeriod]  = useState('1');
-  const [copied,  setCopied]  = useState(false);
+const EMP_PRICES = { '1': 4995, '6': 39990, '12': 59990 };
 
-  const tgId = user?.id || user?.telegram_id || '';
+function AddEmployeeModal({ user, onClose, onOrderCreated }) {
+  const [period,   setPeriod]   = useState('1');
+  const [seats,    setSeats]    = useState(1);
+  const [loading,  setLoading]  = useState(false);
+  const [done,     setDone]     = useState(false);
+  const [error,    setError]    = useState('');
+  const [copied,   setCopied]   = useState(false);
+
+  const tgId      = user?.id || user?.telegram_id || '';
   const inviteLink = 'https://t.me/evirmaclub_bot?start=emp_' + tgId + '_' + period + 'm';
+  const pricePerSeat = EMP_PRICES[period] || 4995;
+  const totalPrice   = pricePerSeat * seats;
 
-  const payLinks = {
-    '1':  'https://t.me/evirmaclub_bot?start=pay_emp_1m',
-    '3':  'https://t.me/evirmaclub_bot?start=pay_emp_3m',
-    '6':  'https://t.me/evirmaclub_bot?start=pay_emp_6m',
-    '12': 'https://t.me/evirmaclub_bot?start=pay_emp_12m',
-  };
+  function fmt(n) { return n.toLocaleString('ru-RU') + ' ₽'; }
 
   function copy() {
     navigator.clipboard?.writeText(inviteLink);
     setCopied(true); setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function createOrder() {
+    setLoading(true); setError('');
+    try {
+      const r = await api.post('/api/me/employees/create-order', { period, seats });
+      setDone(true);
+      if (onOrderCreated) onOrderCreated();
+    } catch(e) {
+      setError(e.message || 'Ошибка создания заказа');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -3745,59 +3770,76 @@ function AddEmployeeModal({ user, onClose }) {
         h('button', { className: 'contractor-modal-close', onClick: onClose }, '✕')
       ),
 
-      h('div', { className: 'contractor-modal-section' },
-        h('div', { className: 'contractor-modal-label' }, 'Срок подписки'),
-        h('select', {
-          value: period,
-          onChange: e => setPeriod(e.target.value),
-          style: { width:'100%', background:'var(--bg3)', color:'var(--text)', border:'1px solid var(--border)', borderRadius:10, padding:'10px 14px', fontSize:15, cursor:'pointer', fontFamily:'inherit' }
-        },
-          h('option', { value:'1' },  '1 месяц'),
-          h('option', { value:'3' },  '3 месяца'),
-          h('option', { value:'6' },  '6 месяцев'),
-          h('option', { value:'12' }, '12 месяцев')
+      done ? h('div', { style:{padding:'24px 0',textAlign:'center'} },
+        h('div', { style:{fontSize:48,marginBottom:12} }, '✅'),
+        h('div', { style:{fontSize:17,fontWeight:700,marginBottom:8} }, 'Заказ создан!'),
+        h('div', { style:{fontSize:14,color:'var(--text2)',marginBottom:20} }, 'Бот напишет вам в Telegram со ссылкой на оплату. После оплаты слоты появятся автоматически.'),
+        h('div', { className: 'contractor-modal-section' },
+          h('div', { className: 'contractor-modal-label' }, 'Ссылка-приглашение для сотрудника'),
+          h('div', { style:{display:'flex',gap:8,alignItems:'center'} },
+            h('div', { style:{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 14px',fontSize:12,color:'var(--text2)',wordBreak:'break-all',fontFamily:'monospace'} }, inviteLink),
+            h('button', { onClick: copy, style:{background:copied?'var(--green)':'var(--accent)',color:'white',border:'none',borderRadius:10,padding:'10px 14px',cursor:'pointer',fontWeight:700,fontSize:13,transition:'background 0.2s'} },
+              copied ? '✓' : h(Icon.copy))
+          )
         )
-      ),
+      ) : h('div', null,
+        h('div', { className: 'contractor-modal-section' },
+          h('div', { className: 'contractor-modal-label' }, 'Срок подписки'),
+          h('select', {
+            value: period, onChange: e => setPeriod(e.target.value),
+            style:{width:'100%',background:'var(--bg3)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 14px',fontSize:15,cursor:'pointer',fontFamily:'inherit'}
+          },
+            h('option', { value:'1'  }, '1 месяц — ' + fmt(EMP_PRICES['1'])  + '/сотрудник'),
+            h('option', { value:'6'  }, '6 месяцев — ' + fmt(EMP_PRICES['6'])  + '/сотрудник'),
+            h('option', { value:'12' }, '12 месяцев — ' + fmt(EMP_PRICES['12']) + '/сотрудник')
+          )
+        ),
 
-      h('div', { className: 'contractor-modal-section' },
-        h('div', { className: 'contractor-modal-label' }, 'Инструкция для сотрудника'),
-        h('div', { style:{background:'var(--bg3)',borderRadius:12,padding:'14px 16px',fontSize:14,color:'var(--text2)',lineHeight:1.7,border:'1px solid var(--border)'} },
-          '1. Оплатите подписку через кнопку ниже', h('br'),
-          '2. Отправьте сотруднику ссылку-приглашение', h('br'),
-          '3. Сотрудник переходит по ссылке и получает доступ', h('br'),
-          '4. Вы увидите его в списке сотрудников'
-        )
-      ),
+        h('div', { className: 'contractor-modal-section' },
+          h('div', { className: 'contractor-modal-label' }, 'Количество сотрудников'),
+          h('div', { style:{display:'flex',alignItems:'center',gap:16} },
+            h('button', { onClick:()=>setSeats(s=>Math.max(1,s-1)), style:{width:36,height:36,borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text)',fontSize:20,cursor:'pointer',flexShrink:0} }, '−'),
+            h('div', { style:{fontSize:24,fontWeight:800,minWidth:32,textAlign:'center'} }, seats),
+            h('button', { onClick:()=>setSeats(s=>Math.min(5,s+1)), style:{width:36,height:36,borderRadius:8,border:'1px solid var(--border)',background:'var(--bg3)',color:'var(--text)',fontSize:20,cursor:'pointer',flexShrink:0} }, '+')
+          )
+        ),
 
-      h('div', { className: 'contractor-modal-section' },
-        h('div', { className: 'contractor-modal-label' }, 'Ссылка-приглашение для сотрудника'),
-        h('div', { style:{display:'flex',gap:8,alignItems:'center'} },
-          h('div', { style:{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:10,padding:'10px 14px',fontSize:13,color:'var(--text2)',wordBreak:'break-all',fontFamily:'monospace'} }, inviteLink),
+        h('div', { className: 'contractor-modal-section' },
+          h('div', { className: 'contractor-modal-label' }, 'Инструкция'),
+          h('div', { style:{background:'var(--bg3)',borderRadius:12,padding:'14px 16px',fontSize:14,color:'var(--text2)',lineHeight:1.7,border:'1px solid var(--border)'} },
+            '1. Нажмите кнопку «Оплатить» — бот напишет вам в Telegram', h('br'),
+            '2. Оплатите по ссылке от бота', h('br'),
+            '3. Слоты появятся автоматически', h('br'),
+            '4. Отправьте сотруднику ссылку-приглашение'
+          )
+        ),
+
+        error && h('div', { style:{color:'var(--red)',fontSize:13,padding:'8px 0',textAlign:'center'} }, error),
+
+        h('div', { style:{display:'flex',flexDirection:'column',gap:10} },
+          h('div', { style:{textAlign:'center',fontSize:13,color:'var(--text3)',fontWeight:600} },
+            'Итого: ', h('span', { style:{color:'var(--text)',fontSize:16,fontWeight:800} }, fmt(totalPrice))
+          ),
           h('button', {
-            onClick: copy,
-            style:{background:copied?'var(--green)':'var(--accent)',color:'white',border:'none',borderRadius:10,padding:'10px 16px',cursor:'pointer',fontWeight:700,fontSize:13,whiteSpace:'nowrap',transition:'background 0.2s'}
-          }, copied ? '✓ Скопировано' : 'Копировать')
+            onClick: createOrder, disabled: loading,
+            style:{display:'flex',alignItems:'center',justifyContent:'center',gap:10,background:'var(--accent)',color:'white',border:'none',borderRadius:12,padding:'14px 20px',cursor:loading?'not-allowed':'pointer',fontWeight:700,fontSize:15,opacity:loading?0.7:1,transition:'opacity 0.15s'}
+          },
+            h('span', { style:{display:'inline-flex',width:20,height:20,flexShrink:0} }, h(Icon.telegram)),
+            loading ? 'Создаём заказ...' : 'Оплатить через Telegram'
+          )
         )
-      ),
-
-      h('a', {
-        href: payLinks[period],
-        target: '_blank',
-        rel: 'noopener',
-        style:{display:'flex',alignItems:'center',justifyContent:'center',gap:10,background:'var(--accent)',color:'white',borderRadius:12,padding:'14px 20px',textDecoration:'none',fontWeight:700,fontSize:15,transition:'background 0.15s'}
-      },
-        h('span', { style:{display:'inline-flex',width:20,height:20,flexShrink:0} }, h(Icon.telegram)),
-        'Перейти к оплате в Telegram'
       )
     )
   );
 }
 
+
 // ===== PROFILE =====
 function Profile({ user }) {
   const [sub,            setSub]            = useState(null);
   const [employees,      setEmployees]      = useState([]);
-  const [empSlots,       setEmpSlots]       = useState(5);
+  const [empSlots,       setEmpSlots]       = useState(0);
+  const [empOrders,      setEmpOrders]      = useState([]);
   const [profileData,    setProfileData]    = useState(null);
   const [editing,        setEditing]        = useState(false);
   const [editData,       setEditData]       = useState({});
@@ -3810,7 +3852,7 @@ function Profile({ user }) {
 
   useEffect(() => {
     api.get('/api/me/subscription').then(s => setSub(s)).catch(() => setSub({ active: true, message: 'Dev режим' }));
-    api.get('/api/me/employees').then(r => { setEmployees(r.employees); setEmpSlots(r.slots||5); }).catch(()=>{});
+    api.get('/api/me/employees').then(r => { setEmployees(r.employees); setEmpSlots(r.paid_slots||0); setEmpOrders(r.orders||[]); }).catch(()=>{});
     // Загружаем данные из базы учеников по telegram_id
     api.get('/api/me/profile-data').then(r => setProfileData(r.data)).catch(()=>{});
   }, []);
@@ -3831,7 +3873,14 @@ function Profile({ user }) {
   }
 
   return h('div', { className: 'profile-wrap' },
-    showAddEmpModal && h(AddEmployeeModal, { user, onClose: () => setShowAddEmpModal(false) }),
+    showAddEmpModal && h(AddEmployeeModal, {
+      user,
+      onClose: () => setShowAddEmpModal(false),
+      onOrderCreated: () => {
+        // Перезагружаем слоты после создания заказа
+        api.get('/api/me/employees').then(r => { setEmployees(r.employees); setEmpSlots(r.paid_slots||0); setEmpOrders(r.orders||[]); }).catch(()=>{});
+      }
+    }),
 
     h('div', { className: 'profile-header' },
       user?.photo_url
@@ -3968,10 +4017,27 @@ function Profile({ user }) {
         h('div', { className: 'employees-head' },
           h('div', { className: 'profile-card-title', style: { margin: 0 } }, 'Мои сотрудники'),
           h('div', { className: 'employees-stats' },
-            h('div', null, h('strong', null, employees.length), '/' + empSlots + ' слотов')
+            empSlots > 0
+              ? h('div', null, h('strong', null, employees.length), '/' + empSlots + ' слотов')
+              : h('div', { style:{color:'var(--text3)',fontSize:12} }, 'Слоты не куплены')
           )
         ),
-        h('div', { className: 'employees-grid' },
+
+        // Если слотов нет — показываем CTA
+        empSlots === 0 && h('div', { style:{textAlign:'center',padding:'24px 0'} },
+          h('div', { style:{fontSize:36,marginBottom:8} }, '👥'),
+          h('div', { style:{fontSize:15,fontWeight:700,marginBottom:6} }, 'Добавьте сотрудников'),
+          h('div', { style:{fontSize:13,color:'var(--text2)',marginBottom:16,lineHeight:1.6} },
+            'Дайте команде доступ к клубу.', h('br'),
+            'От 4 995 ₽/мес за сотрудника.'
+          ),
+          h('button', {
+            onClick: () => setShowAddEmpModal(true),
+            style:{background:'var(--accent)',color:'white',border:'none',borderRadius:12,padding:'12px 24px',cursor:'pointer',fontWeight:700,fontSize:14}
+          }, '+ Купить слоты')
+        ),
+
+        empSlots > 0 && h('div', { className: 'employees-grid' },
           ...employees.map(emp =>
             h('div', { key: emp.id, className: 'employee-slot filled' },
               h('div', { className: 'user-avatar' }, (emp.first_name || 'С').slice(0,2).toUpperCase()),
@@ -3991,6 +4057,16 @@ function Profile({ user }) {
               h('div', { className: 'add-employee-text' }, 'Добавить сотрудника'),
               h('div', { style:{fontSize:'11px',color:'var(--accent)',marginTop:4,fontWeight:600} }, 'Нажмите для инструкции')
             )
+          ),
+          // Кнопка купить ещё слоты
+          h('div', {
+            key: 'buy-more',
+            className: 'employee-slot empty',
+            style:{cursor:'pointer',borderColor:'var(--accent)',opacity:0.7},
+            onClick: () => setShowAddEmpModal(true)
+          },
+            h('div', { className: 'add-employee-icon', style:{color:'var(--accent)'} }, '+'),
+            h('div', { className: 'add-employee-text', style:{color:'var(--accent)',fontSize:11} }, 'Купить ещё слоты')
           )
         )
       )
@@ -4296,7 +4372,7 @@ function AdminStudents() {
         : h('table', { style:{width:'100%',borderCollapse:'collapse'} },
             h('thead', null,
               h('tr', null,
-                ...['Имя','Telegram ID','Username','Добавлен',''].map(col =>
+                ...['Имя','Telegram ID','Username',''].map(col =>
                   h('th', { key:col, style:{textAlign:'left',padding:'8px 12px',fontSize:12,color:'var(--text-dim)',borderBottom:'1px solid var(--border)',fontWeight:600} }, col)
                 )
               )
@@ -4307,7 +4383,6 @@ function AdminStudents() {
                   h('td', { style:{padding:'10px 12px',fontSize:13,fontWeight:600} }, a.first_name || '—'),
                   h('td', { style:{padding:'10px 12px',fontSize:12,color:'var(--text-dim)'} }, a.telegram_id),
                   h('td', { style:{padding:'10px 12px',fontSize:12,color:'var(--accent)'} }, a.username ? '@'+a.username : '—'),
-                  h('td', { style:{padding:'10px 12px',fontSize:12,color:'var(--text-dim)'} }, a.created_at ? new Date(a.created_at).toLocaleDateString('ru-RU') : '—'),
                   h('td', { style:{padding:'10px 12px'} },
                     h('button', {
                       onClick: () => revokeAdmin(a.telegram_id, a.first_name || a.telegram_id),
@@ -4801,6 +4876,42 @@ function AdminContent({ onDataChange }) {
                   ...MODULES.map(m =>
                     h('option', { key: m.id, value: m.id }, m.title)
                   )
+                ),
+                h('div', { style:{display:'flex',gap:6,marginLeft:4} },
+                  h('button', {
+                    title: lesson.hidden ? 'Показать' : 'Скрыть',
+                    onClick: () => {
+                      const newHidden = !lesson.hidden;
+                      lesson.hidden = newHidden;
+                      api.patch('/api/admin/lessons/' + lesson.id, { hidden: newHidden })
+                        .then(() => { persistAdminChanges(); forceUpdate(n=>n+1); showSavedToast(); })
+                        .catch(()=>{});
+                    },
+                    style:{
+                      background: lesson.hidden ? 'rgba(255,107,44,0.12)' : 'var(--bg3)',
+                      border: '1px solid ' + (lesson.hidden ? 'var(--accent-border)' : 'var(--border)'),
+                      borderRadius:8, padding:'6px 10px', cursor:'pointer',
+                      fontSize:13, color: lesson.hidden ? 'var(--accent)' : 'var(--text2)',
+                      fontWeight:700, whiteSpace:'nowrap'
+                    }
+                  }, lesson.hidden ? '👁 Показать' : '🙈 Скрыть'),
+                  h('button', {
+                    title: 'Удалить урок',
+                    onClick: () => {
+                      if (!confirm('Удалить урок "' + lesson.title + '"? Это действие нельзя отменить.')) return;
+                      api.delete('/api/admin/lessons/' + lesson.id)
+                        .then(() => {
+                          setLessons(prev => prev.filter(l => l.id !== lesson.id));
+                          showSavedToast();
+                        })
+                        .catch(() => alert('Ошибка удаления'));
+                    },
+                    style:{
+                      background:'rgba(255,91,91,0.08)', border:'1px solid rgba(255,91,91,0.2)',
+                      borderRadius:8, padding:'6px 10px', cursor:'pointer',
+                      fontSize:13, color:'#FF5B5B', fontWeight:700
+                    }
+                  }, '🗑 Удалить')
                 )
               )
             )
