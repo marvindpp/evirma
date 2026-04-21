@@ -15,8 +15,17 @@ if (fs.existsSync(contentPath)) {
   const content = JSON.parse(fs.readFileSync(contentPath, 'utf8'));
   const insM = db.prepare('INSERT OR REPLACE INTO modules (id, slug, title, icon, sort_order) VALUES (?, ?, ?, ?, ?)');
   for (const m of content.modules) insM.run(m.id, m.slug, m.title, m.icon, m.order);
-  const insL = db.prepare('INSERT OR REPLACE INTO lessons (id, title, module_id, duration, duration_sec, embed_url, poster_url, created_at, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  for (const l of content.lessons) insL.run(l.id, l.title, l.module_id, l.duration, l.duration_sec, l.embed_url, l.poster||'', l.created_at, l.order_in_module);
+  const insL = db.prepare(`INSERT OR REPLACE INTO lessons
+    (id, cms_id, title, description, content_html, content_text, module_id,
+     duration, duration_sec, embed_url, video_url, poster_url, cover_url,
+     created_at, published_at, status, views, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  for (const l of content.lessons) insL.run(
+    l.id, l.cms_id||'', l.title, l.description||'', l.content_html||'', l.content_text||'',
+    l.module_id, l.duration, l.duration_sec||0, l.embed_url, l.video_url||'',
+    l.poster||l.poster_url||l.cover_url||'', l.cover_url||'',
+    l.created_at, l.published_at||'', l.status||'published', l.views||0, l.order_in_module||0
+  );
   console.log('✅ ' + content.modules.length + ' разделов, ' + content.lessons.length + ' уроков');
 }
 

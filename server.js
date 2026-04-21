@@ -278,7 +278,7 @@ app.get('/api/modules', requireAuth, (req, res) => {
 // ── УРОКИ ──
 app.get('/api/lessons', requireAuth, (req, res) => {
   const { module_id, search } = req.query;
-  let sql = 'SELECT l.*, lp.watched, lp.watched_at FROM lessons l LEFT JOIN lesson_progress lp ON l.id = lp.lesson_id AND lp.user_id = (SELECT id FROM users WHERE telegram_id = ?) WHERE 1=1';
+  let sql = 'SELECT l.*, lp.watched, lp.watched_at FROM lessons l LEFT JOIN lesson_progress lp ON l.id = lp.lesson_id AND lp.user_id = (SELECT id FROM users WHERE telegram_id = ?) WHERE l.hidden = 0';
   const params = [req.user.telegram_id];
 
   if (module_id) { sql += ' AND l.module_id = ?'; params.push(module_id); }
@@ -454,19 +454,28 @@ app.patch('/api/me/profile-data', requireAuth, (req, res) => {
 });
 
 
+// Цены на подписку сотрудников (руб)
+const EMP_PRICES = { '1': 4995, '6': 39990, '12': 59990 };
+const SALEBOT_API_KEY = '8d3b0d7bc78dffa399e4a31272bd586b';
+const SALEBOT_MESSAGE_ID = 48380142;
+
 app.get('/api/me/employees', requireAuth, (req, res) => {
-  const owner = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
-  if (!owner) return res.json({ employees: [], slots: 5 });
+  const owner = db.prepare('SELECT id, paid_emp_slots FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
+  if (!owner) return res.json({ employees: [], slots: 0, paid_slots: 0, used: 0 });
   const employees = db.prepare('SELECT * FROM employees WHERE owner_id = ?').all(owner.id);
-  res.json({ employees, slots: 5, used: employees.length });
+  const paidSlots = owner.paid_emp_slots || 0;
+  // История заказов (только оплаченные)
+  const orders = db.prepare('SELECT period, seats, sur_cost, paid_at FROM employee_orders WHERE owner_user_id = ? AND status = ?').all(owner.id, 'paid');
+  res.json({ employees, slots: paidSlots, paid_slots: paidSlots, used: employees.length, orders });
 });
 
 app.post('/api/me/employees', requireAuth, (req, res) => {
-  const owner = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
+  const owner = db.prepare('SELECT id, paid_emp_slots FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
   if (!owner) return res.status(404).json({ error: 'user_not_found' });
 
+  const paidSlots = owner.paid_emp_slots || 0;
   const count = db.prepare('SELECT COUNT(*) as cnt FROM employees WHERE owner_id = ?').get(owner.id).cnt;
-  if (count >= 5) return res.status(400).json({ error: 'employee_limit_reached', max: 5 });
+  if (count >= paidSlots) return res.status(400).json({ error: 'employee_limit_reached', max: paidSlots });
 
   const { telegram_id, first_name } = req.body;
   db.prepare('INSERT INTO employees (owner_id, telegram_id, first_name) VALUES (?, ?, ?)').run(owner.id, telegram_id, first_name);
@@ -477,6 +486,89 @@ app.delete('/api/me/employees/:id', requireAuth, (req, res) => {
   const owner = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
   db.prepare('DELETE FROM employees WHERE id = ? AND owner_id = ?').run(req.params.id, owner?.id);
   res.json({ ok: true });
+});
+
+// ── СОЗДАНИЕ ЗАКАЗА НА ПОДПИСКУ СОТРУДНИКА ──
+app.post('/api/me/employees/create-order', requireAuth, async (req, res) => {
+  const { period, seats } = req.body;
+  if (!period || !seats) return res.status(400).json({ error: 'period and seats required' });
+
+  const pricePerSeat = EMP_PRICES[String(period)];
+  if (!pricePerSeat) return res.status(400).json({ error: 'invalid_period', valid: Object.keys(EMP_PRICES) });
+
+  const seatsNum = Math.max(1, Math.min(5, parseInt(seats) || 1));
+  const surCost = pricePerSeat * seatsNum;
+
+  // Получаем внутренний id пользователя (не telegram_id!)
+  const owner = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(req.user.telegram_id);
+  if (!owner) return res.status(404).json({ error: 'user_not_found' });
+
+  // Сохраняем заказ как pending
+  const orderResult = db.prepare(
+    'INSERT INTO employee_orders (owner_user_id, period, seats, sur_cost, status) VALUES (?, ?, ?, ?, ?)'
+  ).run(owner.id, String(period), seatsNum, surCost, 'pending');
+  const ourOrderId = orderResult.lastInsertRowid;
+
+  // Вызываем Salebot API — бот напишет пользователю и создаст платёж
+  try {
+    const salebotUrl = `https://chatter.salebot.pro/api/${SALEBOT_API_KEY}/message`;
+    const body = JSON.stringify({
+      message_id: SALEBOT_MESSAGE_ID,
+      client_id:  owner.id,      // внутренний id из нашей таблицы users
+      surCost:    surCost,
+      seats:      seatsNum,
+      period:     String(period),
+      our_order_id: ourOrderId   // наш id заказа чтобы потом матчить в webhook
+    });
+    const resp = await fetch(salebotUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+    const salebotResp = await resp.json().catch(() => ({}));
+    console.log('[Salebot] create order response:', salebotResp);
+  } catch(e) {
+    console.error('[Salebot] API error:', e.message);
+    // Не фейлим запрос — пусть юзер знает что заказ создан, бот сам дойдёт
+  }
+
+  res.json({
+    ok: true,
+    order_id: ourOrderId,
+    sur_cost: surCost,
+    seats: seatsNum,
+    period,
+    message: 'Заказ создан. Бот пришлёт вам ссылку на оплату в Telegram.'
+  });
+});
+
+// ── WEBHOOK от Salebot: подтверждение оплаты ──
+app.post('/api/webhook/salebot/payment', (req, res) => {
+  console.log('[Webhook Salebot] body:', JSON.stringify(req.body));
+  const { our_order_id, salebot_order_id, client_id, seats, period, status } = req.body;
+
+  if (!our_order_id && !salebot_order_id) {
+    return res.status(400).json({ error: 'order_id required' });
+  }
+
+  // Находим заказ
+  const order = our_order_id
+    ? db.prepare('SELECT * FROM employee_orders WHERE id = ?').get(our_order_id)
+    : db.prepare('SELECT * FROM employee_orders WHERE salebot_order_id = ?').get(salebot_order_id);
+
+  if (!order) return res.status(404).json({ error: 'order_not_found' });
+
+  // Обновляем статус заказа
+  db.prepare('UPDATE employee_orders SET status = ?, salebot_order_id = ?, paid_at = datetime(\'now\') WHERE id = ?')
+    .run('paid', String(salebot_order_id || ''), order.id);
+
+  // Начисляем слоты владельцу
+  const paidSeats = seats || order.seats;
+  db.prepare('UPDATE users SET paid_emp_slots = paid_emp_slots + ? WHERE id = ?')
+    .run(paidSeats, order.owner_user_id);
+
+  console.log(`[Webhook] Заказ ${order.id} оплачен. Владелец ${order.owner_user_id} получил ${paidSeats} слотов.`);
+  res.json({ ok: true, order_id: order.id, granted_slots: paidSeats });
 });
 
 // ── ADMIN: сброс анкеты (для тестирования онбординга) ──
@@ -555,16 +647,24 @@ app.post('/api/admin/lessons', requireAuth, requireAdmin, (req, res) => {
 
 // Обновить урок
 app.patch('/api/admin/lessons/:id', requireAuth, requireAdmin, (req, res) => {
-  const { title, module_id, description, files } = req.body;
+  const { title, module_id, description, files, hidden } = req.body;
   const updates = [];
   const params  = [];
   if (title !== undefined)       { updates.push('title = ?');       params.push(title); }
   if (module_id !== undefined)   { updates.push('module_id = ?');   params.push(module_id); }
   if (description !== undefined) { updates.push('description = ?'); params.push(description); }
   if (files !== undefined)       { updates.push('files = ?');       params.push(JSON.stringify(files)); }
+  if (hidden !== undefined)      { updates.push('hidden = ?');      params.push(hidden ? 1 : 0); }
   if (!updates.length) return res.status(400).json({ error: 'nothing_to_update' });
   params.push(req.params.id);
   db.prepare(`UPDATE lessons SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  res.json({ ok: true });
+});
+
+// Удалить урок
+app.delete('/api/admin/lessons/:id', requireAuth, requireAdmin, (req, res) => {
+  db.prepare('DELETE FROM lesson_progress WHERE lesson_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM lessons WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 

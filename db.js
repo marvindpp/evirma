@@ -41,14 +41,22 @@ function initSchema(db) {
     -- Уроки (видеоуроки из Kinescope)
     CREATE TABLE IF NOT EXISTS lessons (
       id              TEXT    PRIMARY KEY,   -- Kinescope UUID
+      cms_id          TEXT    DEFAULT '',
       title           TEXT    NOT NULL,
       description     TEXT    DEFAULT '',
+      content_html    TEXT    DEFAULT '',
+      content_text    TEXT    DEFAULT '',
       module_id       INTEGER REFERENCES modules(id),
       duration        TEXT,
       duration_sec    INTEGER DEFAULT 0,
       embed_url       TEXT,
+      video_url       TEXT    DEFAULT '',
       poster_url      TEXT,
+      cover_url       TEXT    DEFAULT '',
       created_at      TEXT,
+      published_at    TEXT    DEFAULT '',
+      status          TEXT    DEFAULT 'published',
+      views           INTEGER DEFAULT 0,
       sort_order      INTEGER DEFAULT 0
     );
 
@@ -102,6 +110,19 @@ function initSchema(db) {
       added_at      TEXT    DEFAULT (datetime('now'))
     );
 
+    -- Заказы на подписку сотрудников
+    CREATE TABLE IF NOT EXISTS employee_orders (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_user_id   INTEGER REFERENCES users(id),  -- внутренний id владельца
+      salebot_order_id TEXT   DEFAULT '',             -- id заказа от Salebot (приходит в webhook)
+      period          TEXT    NOT NULL,               -- '1', '3', '6', '12'
+      seats           INTEGER NOT NULL DEFAULT 1,     -- кол-во оплаченных мест
+      sur_cost        INTEGER NOT NULL,               -- сумма в рублях
+      status          TEXT    DEFAULT 'pending',      -- pending | paid | failed
+      created_at      TEXT    DEFAULT (datetime('now')),
+      paid_at         TEXT    DEFAULT NULL
+    );
+
     -- Оценки подрядчиков от пользователей
     CREATE TABLE IF NOT EXISTS contractor_ratings (
       user_id        INTEGER REFERENCES users(id),
@@ -112,10 +133,23 @@ function initSchema(db) {
     );
   `);
 
-  // Миграция: добавляем active_token если колонки нет
-  try {
-    db.exec("ALTER TABLE users ADD COLUMN active_token TEXT");
-  } catch(e) { /* already exists */ }
+  // Миграции новых колонок
+  const migrations = [
+    "ALTER TABLE users ADD COLUMN active_token TEXT",
+    "ALTER TABLE users ADD COLUMN paid_emp_slots INTEGER DEFAULT 0",
+    "ALTER TABLE lessons ADD COLUMN cms_id TEXT DEFAULT ''",
+    "ALTER TABLE lessons ADD COLUMN content_html TEXT DEFAULT ''",
+    "ALTER TABLE lessons ADD COLUMN content_text TEXT DEFAULT ''",
+    "ALTER TABLE lessons ADD COLUMN video_url TEXT DEFAULT ''",
+    "ALTER TABLE lessons ADD COLUMN cover_url TEXT DEFAULT ''",
+    "ALTER TABLE lessons ADD COLUMN published_at TEXT DEFAULT ''",
+    "ALTER TABLE lessons ADD COLUMN status TEXT DEFAULT 'published'",
+    "ALTER TABLE lessons ADD COLUMN views INTEGER DEFAULT 0",
+    "ALTER TABLE lessons ADD COLUMN hidden INTEGER DEFAULT 0",
+  ];
+  for (const sql of migrations) {
+    try { db.exec(sql); } catch(e) { /* already exists */ }
+  }
 
   // Миграция: contractor_ratings (могла не создаться на старых БД)
   try {
