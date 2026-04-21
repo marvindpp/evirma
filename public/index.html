@@ -4001,7 +4001,11 @@ function Profile({ user }) {
       h('div', { className: 'subscription-card' },
         h('div', { className: 'sub-status' }, sub?.active ? 'Активна' : 'Не активна'),
         h('div', { className: 'sub-tariff' }, 'Подписка Max Evirma Club'),
-        sub?.message && h('div', { className: 'sub-days-label', style:{marginBottom:8} }, sub.message),
+        sub?.days != null && h('div', { style:{margin:'12px 0 4px'} },
+          h('div', { className: 'sub-days' }, sub.days),
+          h('div', { className: 'sub-days-label' }, sub.days === 1 ? 'день до конца подписки' : sub.days < 5 ? 'дня до конца подписки' : 'дней до конца подписки')
+        ),
+        sub?.message && !sub?.days && h('div', { className: 'sub-days-label', style:{marginBottom:8} }, sub.message),
         h('a', {
           className: 'sub-extend-btn',
           href: 'https://t.me/evirmaclub_bot',
@@ -4846,12 +4850,24 @@ function AdminContent({ onDataChange }) {
                   }),
                   h('input', {
                     style:{fontSize:11,color:'var(--text-dim)',background:'transparent',border:'none',borderBottom:'1px dashed var(--border)',width:'100%',marginTop:3,padding:'2px 0',outline:'none'},
-                    placeholder:'Описание урока (опционально)...',
+                    placeholder:'Краткое описание...',
                     defaultValue: lesson.description||'',
                     onBlur: e => {
                       if (e.target.value !== (lesson.description||'')) {
                         lesson.description = e.target.value;
                         api.patch('/api/admin/lessons/' + lesson.id, { description: e.target.value }).catch(()=>{});
+                      }
+                    }
+                  }),
+                  h('textarea', {
+                    style:{fontSize:11,color:'var(--text3)',background:'transparent',border:'none',borderBottom:'1px dashed var(--border)',width:'100%',marginTop:4,padding:'2px 0',outline:'none',resize:'none',fontFamily:'inherit',lineHeight:1.5,minHeight:32},
+                    placeholder:'Тайм-коды и полное описание (HTML)...',
+                    defaultValue: lesson.content_html||lesson.content_text||'',
+                    rows: 3,
+                    onBlur: e => {
+                      if (e.target.value !== (lesson.content_html||'')) {
+                        lesson.content_html = e.target.value;
+                        api.patch('/api/admin/lessons/' + lesson.id, { content_html: e.target.value }).catch(()=>{});
                       }
                     }
                   }),
@@ -4890,11 +4906,16 @@ function AdminContent({ onDataChange }) {
                     style:{
                       background: lesson.hidden ? 'rgba(255,107,44,0.12)' : 'var(--bg3)',
                       border: '1px solid ' + (lesson.hidden ? 'var(--accent-border)' : 'var(--border)'),
-                      borderRadius:8, padding:'6px 10px', cursor:'pointer',
-                      fontSize:13, color: lesson.hidden ? 'var(--accent)' : 'var(--text2)',
-                      fontWeight:700, whiteSpace:'nowrap'
+                      borderRadius:8, padding:'6px 8px', cursor:'pointer',
+                      display:'flex', alignItems:'center', gap:5,
+                      color: lesson.hidden ? 'var(--accent)' : 'var(--text2)',
                     }
-                  }, lesson.hidden ? '👁 Показать' : '🙈 Скрыть'),
+                  },
+                    lesson.hidden
+                      ? h('svg', {width:14,height:14,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'}, h('path',{d:'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'}), h('circle',{cx:12,cy:12,r:3}))
+                      : h('svg', {width:14,height:14,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'}, h('path',{d:'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'}), h('line',{x1:1,y1:1,x2:23,y2:23})),
+                    h('span', {style:{fontSize:12,fontWeight:600}}, lesson.hidden ? 'Показать' : 'Скрыть')
+                  ),
                   h('button', {
                     title: 'Удалить урок',
                     onClick: () => {
@@ -4908,10 +4929,13 @@ function AdminContent({ onDataChange }) {
                     },
                     style:{
                       background:'rgba(255,91,91,0.08)', border:'1px solid rgba(255,91,91,0.2)',
-                      borderRadius:8, padding:'6px 10px', cursor:'pointer',
-                      fontSize:13, color:'#FF5B5B', fontWeight:700
+                      borderRadius:8, padding:'6px 8px', cursor:'pointer',
+                      display:'flex', alignItems:'center', gap:5, color:'#FF5B5B'
                     }
-                  }, '🗑 Удалить')
+                  },
+                    h('svg',{width:14,height:14,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'}, h('polyline',{points:'3 6 5 6 21 6'}), h('path',{d:'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'}), h('path',{d:'M10 11v6'}), h('path',{d:'M14 11v6'}), h('path',{d:'M9 6V4h6v2'})),
+                    h('span', {style:{fontSize:12,fontWeight:600}}, 'Удалить')
+                  )
                 )
               )
             )
