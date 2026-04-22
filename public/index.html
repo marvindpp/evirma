@@ -4787,7 +4787,7 @@ function AdminContent({ onDataChange }) {
         ),
         h('div', { className: 'admin-stat' },
           h('div', { className: 'admin-stat-label' }, 'Разделов'),
-          h('div', { className: 'admin-stat-value accent' }, MODULES.length)
+          h('div', { className: 'admin-stat-value accent' }, MODULES.filter(m => !m.id.startsWith('kurs-')).length)
         ),
         h('div', { className: 'admin-stat' },
           h('div', { className: 'admin-stat-label' }, 'Изменений'),
@@ -4936,13 +4936,14 @@ function AdminContent({ onDataChange }) {
                   }),
                   h('textarea', {
                     style:{fontSize:11,color:'var(--text3)',background:'transparent',border:'none',borderBottom:'1px dashed var(--border)',width:'100%',marginTop:4,padding:'2px 0',outline:'none',resize:'none',fontFamily:'inherit',lineHeight:1.5,minHeight:32},
-                    placeholder:'Тайм-коды и полное описание (HTML)...',
-                    defaultValue: lesson.content_html||lesson.content_text||'',
+                    placeholder:'Тайм-коды и описание...',
+                    defaultValue: lesson.content_text || (lesson.content_html||'').replace(/<[^>]+>/g,''),
                     rows: 3,
                     onBlur: e => {
-                      if (e.target.value !== (lesson.content_html||'')) {
-                        lesson.content_html = e.target.value;
-                        api.patch('/api/admin/lessons/' + lesson.id, { content_html: e.target.value }).catch(()=>{});
+                      if (e.target.value !== (lesson.content_text||'')) {
+                        lesson.content_text = e.target.value;
+                        lesson.content_html  = e.target.value;
+                        api.patch('/api/admin/lessons/' + lesson.id, { content_text: e.target.value, content_html: e.target.value }).catch(()=>{});
                       }
                     }
                   }),
@@ -4964,7 +4965,7 @@ function AdminContent({ onDataChange }) {
                   value: lesson.moduleId,
                   onChange: e => changeLessonModule(lesson.id, e.target.value)
                 },
-                  ...MODULES.map(m =>
+                  ...MODULES.filter(m => !m.id.startsWith('kurs-')).map(m =>
                     h('option', { key: m.id, value: m.id }, m.title)
                   )
                 ),
