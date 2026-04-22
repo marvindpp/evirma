@@ -803,14 +803,29 @@ app.listen(PORT, () => {
     console.log('⚠️  Ошибка миграции курсов:', e.message);
   }
 
-  // Авто-импорт при первом запуске если база пустая
+  // Авто-импорт контента при каждом запуске (INSERT OR REPLACE — безопасно, пользователи не трогаются)
   try {
-    const lessonCount = db.prepare('SELECT COUNT(*) as cnt FROM lessons').get().cnt;
-    if (lessonCount === 0) {
-      console.log('📦 База пустая — запускаю импорт контента (пользователи не затрагиваются)...');
-      require('./import.js');
+    const contentPath = path.join(__dirname, 'data/content.json');
+    if (fs.existsSync(contentPath)) {
+      const content = JSON.parse(fs.readFileSync(contentPath, 'utf8'));
+      const insM = db.prepare('INSERT OR REPLACE INTO modules (id, slug, title, icon, sort_order) VALUES (?, ?, ?, ?, ?)');
+      for (const m of content.modules) insM.run(m.id, m.slug, m.title, m.icon, m.order);
+      const insL = db.prepare(`INSERT OR REPLACE INTO lessons
+        (id, cms_id, title, description, content_html, content_text, module_id,
+         duration, duration_sec, embed_url, video_url, poster_url, cover_url,
+         created_at, published_at, status, views, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      for (const l of content.lessons) insL.run(
+        l.id, l.cms_id||'', l.title, l.description||'', l.content_html||'', l.content_text||'',
+        l.module_id, l.duration, l.duration_sec||0, l.embed_url||'', l.video_url||'',
+        l.poster||l.poster_url||l.cover_url||'', l.cover_url||l.cover_path||'',
+        l.created_at||'', l.published_at||'', l.status||'published', l.views||0, l.order_in_module||0
+      );
+      const userCount = db.prepare('SELECT COUNT(*) as cnt FROM users').get().cnt;
+      console.log(`✅ Синхронизировано: ${content.lessons.length} уроков, ${content.modules.length} разделов | ${userCount} пользователей`);
     } else {
-      console.log(`✅ База: ${lessonCount} уроков, ${db.prepare('SELECT COUNT(*) as cnt FROM users').get().cnt} пользователей`);
+      const lessonCount = db.prepare('SELECT COUNT(*) as cnt FROM lessons').get().cnt;
+      console.log(`✅ База: ${lessonCount} уроков (content.json не найден)`);
     }
   } catch(e) {
     console.log('⚠️  Ошибка авто-импорта:', e.message);
