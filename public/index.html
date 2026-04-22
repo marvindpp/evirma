@@ -3130,6 +3130,15 @@ function KnowledgeBase({ onLessonClick }) {
   const [search, setSearch] = useState('');
   const [sortOrder, setSortOrder] = useState('newest');
 
+  // Мини-курсы (подразделы) — слаги начинаются с kurs-
+  const subModules  = MODULES.filter(m => m.id.startsWith('kurs-'));
+  const mainModules = MODULES.filter(m => !m.id.startsWith('kurs-'));
+
+  // Для карточки «Мини-курсы» считаем уроки из всех kurs-* подразделов
+  const subIds        = subModules.map(m => m.id);
+  const miniTotal     = LESSONS.filter(l => subIds.includes(l.moduleId)).length;
+  const miniDone      = LESSONS.filter(l => subIds.includes(l.moduleId) && l.done).length;
+
   function parseDate(d) {
     if (!d) return 0;
     const p = d.split('.');
@@ -3137,30 +3146,71 @@ function KnowledgeBase({ onLessonClick }) {
     return 0;
   }
 
-  const showingAll = activeModule === 'all' && !search;
+  const isMiniKurs  = activeModule === 'mini-kursy';
+  const showingAll  = activeModule === 'all' && !search;
 
   const filteredLessons = LESSONS
     .filter(l => {
-      const matchModule = activeModule === 'all' || l.moduleId === activeModule;
-      const matchSearch = !search || l.title.toLowerCase().includes(search.toLowerCase());
-      return matchModule && matchSearch;
+      if (activeModule === 'all') return true;
+      if (isMiniKurs) return subIds.includes(l.moduleId);
+      return l.moduleId === activeModule;
     })
+    .filter(l => !search || l.title.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => sortOrder === 'newest' ? parseDate(b.date) - parseDate(a.date) : parseDate(a.date) - parseDate(b.date));
 
+  // Карточка одного урока
+  function LessonCard({ lesson }) {
+    const mod = MODULES.find(m => m.id === lesson.moduleId);
+    return h('div', { className: 'lesson-card', onClick: () => onLessonClick(lesson) },
+      h('div', { className: 'lesson-thumb' },
+        lesson.embed_url && h('img', { src: lesson.poster_url, loading:'lazy', onError: e => { e.target.style.display='none'; } }),
+        h(Icon.play),
+        h('div', { className: 'lesson-thumb-duration' }, lesson.duration)
+      ),
+      h('div', { className: 'lesson-info' },
+        h('div', { className: 'lesson-title' }, lesson.title),
+        h('div', { className: 'lesson-meta' },
+          !isMiniKurs && h('span', null, mod?.title),
+          !isMiniKurs && h('span', { className: 'lesson-meta-dot' }, '•'),
+          h('span', null, lesson.duration),
+          lesson.date && h('span', { className: 'lesson-meta-dot' }, '•'),
+          lesson.date && h('span', null, lesson.date),
+          lesson.files && lesson.files.length > 0 && h('span', { className: 'lesson-meta-dot' }, '•'),
+          lesson.files && lesson.files.length > 0 && h('span', { style:{color:'var(--accent)'} }, '📎 ' + lesson.files.length + ' файл' + (lesson.files.length === 1 ? '' : lesson.files.length < 5 ? 'а' : 'ов'))
+        )
+      ),
+      lesson.done
+        ? h('div', { className: 'lesson-status done' }, h(Icon.check), 'Просмотрено')
+        : lesson.isNew ? h('div', { className: 'lesson-status new' }, 'Новое') : null
+    );
+  }
+
   return h('div', { className: 'content-wide' },
+
+    // ===== Сетка модулей (только 7 основных) =====
     h('div', { className: 'modules-grid' },
-      ...MODULES.map(mod =>
-        h('div', { key: mod.id, className: 'module-card', onClick: () => { setActiveModule(mod.id === activeModule ? 'all' : mod.id); setSearch(''); }, style: mod.id === activeModule ? { borderColor: 'var(--accent-border)', background: 'var(--bg3)' } : {} },
+      ...mainModules.map(mod => {
+        const isMini    = mod.id === 'mini-kursy';
+        const total     = isMini ? miniTotal : mod.total;
+        const done      = isMini ? miniDone  : mod.done;
+        const isActive  = mod.id === activeModule;
+        return h('div', {
+          key: mod.id,
+          className: 'module-card',
+          onClick: () => { setActiveModule(mod.id === activeModule ? 'all' : mod.id); setSearch(''); },
+          style: isActive ? { borderColor: 'var(--accent-border)', background: 'var(--bg3)' } : {}
+        },
           h('div', { className: 'module-icon', style: moduleIconStyle(mod.id) }, h(Icon[mod.icon])),
           h('div', { className: 'module-name' }, mod.title),
-          h('div', { className: 'module-count' }, mod.done + ' из ' + mod.total + ' уроков'),
+          h('div', { className: 'module-count' }, done + ' из ' + total + ' уроков'),
           h('div', { className: 'module-progress-bar' },
-            h('div', { className: 'module-progress-fill', style: { width: Math.round((mod.done / mod.total) * 100) + '%' } })
+            h('div', { className: 'module-progress-fill', style: { width: total ? Math.round((done / total) * 100) + '%' : '0%' } })
           )
-        )
-      )
+        );
+      })
     ),
 
+    // ===== Поиск и фильтры =====
     h('div', { style:{margin:'1.5rem 0 1rem',display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'} },
       h('div', { className:'admin-search', style:{flex:1,minWidth:200} },
         h(Icon.search),
@@ -3187,39 +3237,50 @@ function KnowledgeBase({ onLessonClick }) {
       }, 'Сбросить')
     ),
 
-    !showingAll && h('div', { className: 'section-head', style: { marginTop: '0.5rem' } },
+    // ===== Заголовок раздела =====
+    !showingAll && !isMiniKurs && h('div', { className: 'section-head', style: { marginTop: '0.5rem' } },
       h('div', { className: 'section-title' },
-        search ? 'Результаты поиска' : MODULES.find(m => m.id === activeModule)?.title
+        search ? 'Результаты поиска' : mainModules.find(m => m.id === activeModule)?.title
       )
     ),
 
-    !showingAll && (
+    // ===== Список уроков — обычный раздел =====
+    !showingAll && !isMiniKurs && (
       filteredLessons.length === 0
-        ? h('div', { style:{textAlign:'center',padding:'40px',color:'var(--text-dim)'} }, 'Ничего не найдено по запросу "' + search + '"')
+        ? h('div', { style:{textAlign:'center',padding:'40px',color:'var(--text-dim)'} }, 'Ничего не найдено')
         : h('div', { className: 'lessons-list' },
-            ...filteredLessons.map(lesson => {
-              const mod = MODULES.find(m => m.id === lesson.moduleId);
-              return h('div', { key: lesson.id, className: 'lesson-card', onClick: () => onLessonClick(lesson) },
-                h('div', { className: 'lesson-thumb' },
-                  lesson.embed_url && h('img', { src: lesson.poster_url, loading:'lazy', onError: e => { e.target.style.display='none'; } }),
-                  h(Icon.play),
-                  h('div', { className: 'lesson-thumb-duration' }, lesson.duration)
-                ),
-                h('div', { className: 'lesson-info' },
-                  h('div', { className: 'lesson-title' }, lesson.title),
-                  h('div', { className: 'lesson-meta' },
-                    h('span', null, mod?.title),
-                    h('span', { className: 'lesson-meta-dot' }, '•'),
-                    h('span', null, lesson.duration),
-                    lesson.date && h('span', { className: 'lesson-meta-dot' }, '•'),
-                    lesson.date && h('span', null, lesson.date),
-                    lesson.files && lesson.files.length > 0 && h('span', { className: 'lesson-meta-dot' }, '•'),
-                    lesson.files && lesson.files.length > 0 && h('span', { style:{color:'var(--accent)'} }, '📎 ' + lesson.files.length + ' файл' + (lesson.files.length === 1 ? '' : lesson.files.length < 5 ? 'а' : 'ов'))
+            ...filteredLessons.map(lesson => h(LessonCard, { key: lesson.id, lesson }))
+          )
+    ),
+
+    // ===== Мини-курсы — сгруппированные подразделы =====
+    isMiniKurs && (
+      search
+        ? (filteredLessons.length === 0
+            ? h('div', { style:{textAlign:'center',padding:'40px',color:'var(--text-dim)'} }, 'Ничего не найдено')
+            : h('div', { className: 'lessons-list' },
+                ...filteredLessons.map(lesson => h(LessonCard, { key: lesson.id, lesson }))
+              )
+          )
+        : h('div', null,
+            ...subModules.map(sub => {
+              const subLessons = LESSONS.filter(l => l.moduleId === sub.id)
+                .sort((a, b) => sortOrder === 'newest' ? parseDate(b.date) - parseDate(a.date) : parseDate(a.date) - parseDate(b.date));
+              if (subLessons.length === 0) return null;
+              return h('div', { key: sub.id, style:{marginBottom:'2rem'} },
+                h('div', { className: 'section-head', style:{marginTop:'0.5rem'} },
+                  h('div', { style:{display:'flex',alignItems:'center',gap:10} },
+                    h('div', { style:{
+                      width:32, height:32, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center',
+                      background: moduleIconStyle(sub.id).background, color: moduleIconStyle(sub.id).color, flexShrink:0
+                    }}, h(Icon[sub.icon] || Icon.book)),
+                    h('div', { className: 'section-title', style:{margin:0} }, sub.title),
+                    h('div', { style:{fontSize:13,color:'var(--text-dim)',marginLeft:4} }, subLessons.length + ' уроков')
                   )
                 ),
-                lesson.done
-                  ? h('div', { className: 'lesson-status done' }, h(Icon.check), 'Просмотрено')
-                  : lesson.isNew ? h('div', { className: 'lesson-status new' }, 'Новое') : null
+                h('div', { className: 'lessons-list' },
+                  ...subLessons.map(lesson => h(LessonCard, { key: lesson.id, lesson }))
+                )
               );
             })
           )
