@@ -5045,6 +5045,58 @@ const MODULE_ICON_MAP = {
   'Стратегия продвижения карточки товара':                'zap',
 };
 
+// Маппинг Kinescope ID → слаг мини-курса (без изменений сервера)
+const MINI_COURSE_MAP = {
+  // Обеление с нуля
+  'adf1abc5-1837-4ddb-bc15-a11516ef78c5': 'kurs-obelenie',
+  '2e7f0e9b-92d5-4a0b-8857-b18d33955856': 'kurs-obelenie',
+  '4787affd-1af1-49a2-8152-9bd49a6149b5': 'kurs-obelenie',
+  '55ea9d60-b6e6-4300-a83a-cf23f3c33062': 'kurs-obelenie',
+  '074f6d44-2c6f-43b0-917d-a3f6f6abdbb7': 'kurs-obelenie',
+  // Анализ трендов
+  '140c4422-c5d1-4b7b-8448-7d592e297557': 'kurs-trendy',
+  '69f5b05a-e629-4c08-a79d-ce35e3a95682': 'kurs-trendy',
+  'cb88393a-e69e-47e7-a23c-806e014b140a': 'kurs-trendy',
+  '745faba6-b317-4af6-982f-6846640cfecc': 'kurs-trendy',
+  'b13a6c87-383c-425a-85c0-7946a0db4cee': 'kurs-trendy',
+  // Фотоворонка
+  '8b402144-c6ee-45ac-b946-e38c209b8405': 'kurs-foto',
+  'aedac1ae-e64f-4b66-9501-599db21418c6': 'kurs-foto',
+  'cfd8c3a4-5131-46fa-a161-cced106c8c51': 'kurs-foto',
+  '9e5c9665-5f0d-4025-bc66-9fbdc190be6f': 'kurs-foto',
+  'abd8d023-942a-4956-a118-2f3429372b97': 'kurs-foto',
+  // Новогодний нейроконтент
+  '31d39cd8-3dd4-4ddb-9553-2f904ff06415': 'kurs-neuro',
+  '304a29c1-b5f5-4b29-b001-e899cc811790': 'kurs-neuro',
+  'cb09f056-8126-48eb-9f13-e93980c59732': 'kurs-neuro',
+  // Годовое планирование
+  '5c40c5c1-9e99-4bea-a048-74d3903ee2b7': 'kurs-godplan',
+  '3a5bce3a-01d1-40b2-a1ff-63f4a62b6b0d': 'kurs-godplan',
+  '8d2b2c1d-976b-48d2-ba6f-55d30d2fda29': 'kurs-godplan',
+  '2d4afc2f-5022-417c-a29d-a02b75855a11': 'kurs-godplan',
+  '52725fac-8b44-4c2f-81b5-9902f16775b8': 'kurs-godplan',
+  'a14e2a35-4c16-443f-a3ce-f3219024a7bc': 'kurs-godplan',
+  // Стратегия продвижения
+  '86c55ebe-86d4-4ddd-9b9e-a6691b0f050e': 'kurs-strategiya',
+  '1d652df0-1a29-4ee3-97e9-feab7df4d5dc': 'kurs-strategiya',
+  '9632bf4e-7de0-4dbb-b4af-e0ea9962b8f2': 'kurs-strategiya',
+  '66d589d6-8a1b-4b47-b4f6-6f02350f9062': 'kurs-strategiya',
+  '8ace80dd-54ee-4f42-8a21-bfcbdf5f7f50': 'kurs-strategiya',
+  '3cdff16f-148d-414c-80c9-5f38ed8c7b75': 'kurs-strategiya',
+  '8c8adbe7-c65f-4d6a-968e-5e593b42f3b5': 'kurs-strategiya',
+  'c1b945f3-6647-4748-a2e8-bb1510d28d31': 'kurs-strategiya',
+};
+
+// Гарантируем что kurs-* модули есть в MODULES (даже если сервер их не вернул)
+const KURS_MODULES_FALLBACK = [
+  { id:'kurs-obelenie',   title:'Обеление с нуля',                                icon:'shield',   sort:8  },
+  { id:'kurs-trendy',     title:'Анализ трендов: как найти Лабубу?',              icon:'trending', sort:9  },
+  { id:'kurs-foto',       title:'Фотоворонка от первого взгляда до покупки',       icon:'camera',   sort:10 },
+  { id:'kurs-neuro',      title:'Новогодний нейроконтент',                         icon:'star',     sort:11 },
+  { id:'kurs-godplan',    title:'Сценарий годового планирования товарного бизнеса',icon:'calendar', sort:12 },
+  { id:'kurs-strategiya', title:'Стратегия продвижения карточки товара',           icon:'zap',      sort:13 },
+];
+
 async function loadApiData() {
   const [mods, lsn] = await Promise.all([api.get('/api/modules'), api.get('/api/lessons')]);
 
@@ -5061,14 +5113,23 @@ async function loadApiData() {
     });
   });
 
+  // Добавляем kurs-* модули если их нет в ответе сервера
+  KURS_MODULES_FALLBACK.forEach(km => {
+    if (!MODULES.find(m => m.id === km.id)) {
+      MODULES.push({ id: km.id, title: km.title, icon: km.icon, total: 0, done: 0 });
+    }
+  });
+
   // Полностью заменяем LESSONS данными из API
   LESSONS.length = 0;
   lsn.lessons.forEach(l => {
     const mod = MODULES.find(m => m.title === (mods.modules.find(x => x.id === l.module_id)?.title));
+    // Применяем маппинг мини-курсов прямо на фронте
+    const moduleId = MINI_COURSE_MAP[l.id] || mod?.id || '';
     LESSONS.push({
-      id:           l.id,            // Kinescope UUID
-      kinescopeId:  l.id,            // плеер использует kinescopeId
-      moduleId:     mod?.id || '',
+      id:           l.id,
+      kinescopeId:  l.id,
+      moduleId,
       title:        l.title,
       description:  l.description || '',
       content_html: l.content_html || '',
