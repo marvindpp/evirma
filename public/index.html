@@ -1058,6 +1058,9 @@
     border-radius: 16px;
     padding: 1.25rem;
     transition: all 0.15s;
+    min-width: 0;
+    overflow: hidden;
+    word-break: break-word;
   }
   .contractor-card:hover { border-color: var(--border2); }
   .contractor-head {
@@ -1489,15 +1492,16 @@
     .student-avatar { width: 64px; height: 64px; font-size: 20px; }
     .student-name { font-size: 13px; }
     .student-revenue { font-size: 15px; }
-    .contractors-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-    .contractor-card { padding: 0.75rem; border-radius: 12px; }
-    .contractor-name { font-size: 13px; }
-    .contractor-category { font-size: 9px; padding: 2px 6px; }
-    .contractor-desc { font-size: 11px; margin-bottom: 0.6rem;
+    .contractors-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+    .contractor-card { padding: 0.75rem; border-radius: 12px; min-width: 0; overflow: hidden; }
+    .contractor-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contractor-category { font-size: 9px; padding: 2px 6px; max-width: 100%; white-space: normal; line-height: 1.2; }
+    .contractor-desc { font-size: 11px; margin-bottom: 0.6rem; word-break: break-word;
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-    .contractor-contact { font-size: 11px; padding: 0.4rem 0.6rem; border-radius: 7px; margin-bottom: 0.5rem; }
-    .contractor-promo { padding: 0.5rem 0.65rem; }
-    .contractor-promo-code { font-size: 12px; }
+    .contractor-contact { font-size: 11px; padding: 0.4rem 0.6rem; border-radius: 7px; margin-bottom: 0.5rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .contractor-promo { padding: 0.5rem 0.6rem; flex-wrap: wrap; gap: 6px; }
+    .contractor-promo-code { font-size: 11px; }
     .contractor-promo-btn { font-size: 10px; padding: 5px 8px; }
     .contractor-promo-label { font-size: 8px; }
 
@@ -1553,7 +1557,7 @@
   @media (max-width: 420px) {
     .stats-grid { grid-template-columns: 1fr; gap: 0.6rem; }
     .modules-grid { grid-template-columns: 1fr; }
-    .contractors-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .contractors-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
     .contractor-card { padding: 0.65rem; }
     .contractor-name { font-size: 12px; }
     .contractor-desc { -webkit-line-clamp: 2; font-size: 10px; }
