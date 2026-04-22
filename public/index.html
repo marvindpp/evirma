@@ -5004,18 +5004,20 @@ async function loadApiData() {
   lsn.lessons.forEach(l => {
     const mod = MODULES.find(m => m.title === (mods.modules.find(x => x.id === l.module_id)?.title));
     LESSONS.push({
-      id:          l.id,            // Kinescope UUID
-      kinescopeId: l.id,            // плеер использует kinescopeId
-      moduleId:    mod?.id || '',
-      title:       l.title,
-      description: l.description || '',
-      duration:    l.duration,
+      id:           l.id,            // Kinescope UUID
+      kinescopeId:  l.id,            // плеер использует kinescopeId
+      moduleId:     mod?.id || '',
+      title:        l.title,
+      description:  l.description || '',
+      content_html: l.content_html || '',
+      content_text: l.content_text || '',
+      duration:     l.duration,
       duration_sec: l.duration_sec,
-      embed_url:   l.embed_url,
-      poster_url:  l.poster_url || '',
-      isNew:       false,
-      date:        l.created_at ? new Date(l.created_at).toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric'}) : '',
-      views:       0,
+      embed_url:    l.embed_url,
+      poster_url:   l.poster_url || '',
+      isNew:        false,
+      date:         l.created_at ? new Date(l.created_at).toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit',year:'numeric'}) : '',
+      views:        0,
     });
   });
 
