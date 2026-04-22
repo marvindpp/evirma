@@ -1489,8 +1489,17 @@
     .student-avatar { width: 64px; height: 64px; font-size: 20px; }
     .student-name { font-size: 13px; }
     .student-revenue { font-size: 15px; }
-    .contractors-grid { grid-template-columns: 1fr; gap: 0.75rem; }
-    .contractor-card { padding: 1rem; }
+    .contractors-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .contractor-card { padding: 0.75rem; border-radius: 12px; }
+    .contractor-name { font-size: 13px; }
+    .contractor-category { font-size: 9px; padding: 2px 6px; }
+    .contractor-desc { font-size: 11px; margin-bottom: 0.6rem;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .contractor-contact { font-size: 11px; padding: 0.4rem 0.6rem; border-radius: 7px; margin-bottom: 0.5rem; }
+    .contractor-promo { padding: 0.5rem 0.65rem; }
+    .contractor-promo-code { font-size: 12px; }
+    .contractor-promo-btn { font-size: 10px; padding: 5px 8px; }
+    .contractor-promo-label { font-size: 8px; }
 
     .filters-bar { gap: 0.4rem; }
     .filter-chip { padding: 0.5rem 0.75rem; font-size: 11px; }
@@ -1544,6 +1553,13 @@
   @media (max-width: 420px) {
     .stats-grid { grid-template-columns: 1fr; gap: 0.6rem; }
     .modules-grid { grid-template-columns: 1fr; }
+    .contractors-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .contractor-card { padding: 0.65rem; }
+    .contractor-name { font-size: 12px; }
+    .contractor-desc { -webkit-line-clamp: 2; font-size: 10px; }
+    .contractor-contact { font-size: 10px; padding: 0.35rem 0.5rem; }
+    .contractor-promo-code { font-size: 11px; }
+    .contractor-promo-btn { font-size: 9px; padding: 4px 6px; }
     .auth-card { padding: 2rem 1.5rem; border-radius: 20px; }
     .auth-title { font-size: 22px; }
     .auth-sub { font-size: 13px; margin-bottom: 1.5rem; }
